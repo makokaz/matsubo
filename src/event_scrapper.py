@@ -4,7 +4,6 @@ Scraps events from pre-defined websites.
 """
 
 import sys
-import bs4
 from bs4 import BeautifulSoup as soup
 from urllib.request import urlopen
 from event import Event, mergeDuplicateEvents
@@ -105,14 +104,14 @@ def getEventsJC():
 if __name__ == "__main__":
     # Crawl events
     eventsTY = getEventsTY()
-    eventsJC = getEventsJC()
+    # eventsJC = getEventsJC()
     # Print events
-    events = eventsTY + eventsJC
+    events = eventsTY# + eventsJC
     for event in events:
        print(event)
-    print('Found {} events in total'.format(len(events)))
+    # print('Found {} events in total'.format(len(events)))
     events = mergeDuplicateEvents(events)
-    print('Found {} events in total'.format(len(events)))
+    # print('Found {} events in total'.format(len(events)))
 
 
 # TODO:

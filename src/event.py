@@ -77,7 +77,6 @@ def mergeDuplicateEvents(events, check_duplicate_func=None, merge_func=None, ver
     if merge_func is None:
         merge_func = mergeDate
 
-    # TODO: This function might have a nasty bug. Check if it produces the correct output
     i = 0
     while i < len(events):
         eventA = events[i]
@@ -86,12 +85,11 @@ def mergeDuplicateEvents(events, check_duplicate_func=None, merge_func=None, ver
             eventB = events[j]
             if check_duplicate_func(eventA, eventB):
                 eventA = merge_func(eventA, eventB)
+                events[i] = eventA
                 if verbose:
                     print("Merged events:\n\teventA: {}\n\teventB: {}".format(eventA.url,eventB.url))
                 del events[j]
-                i -= 1 # Possibly a bug, no?
                 j -= 1
-                # Why is event not set back into the array?
             j += 1
         i += 1
     return events
