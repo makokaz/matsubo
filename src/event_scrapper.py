@@ -7,6 +7,7 @@ import sys
 from bs4 import BeautifulSoup as soup
 from urllib.request import urlopen
 from event import Event, mergeDuplicateEvents
+import database
 
 
 def grabPage(url: str):
@@ -16,7 +17,7 @@ def grabPage(url: str):
     uClient.close()
     return soup(page_html, "html.parser")
 
-def getEventsTY():
+def getEventsTC():
     """Return events from Tokyo Cheapo"""
     # Fetch soup from TokyoCheapo
     url = 'https://tokyocheapo.com/events/'
@@ -26,7 +27,7 @@ def getEventsTY():
     events = []
     for event_ in event_soup:
         event = Event(
-            id=event_.findAll(attrs={"data-post-id" : True})[0]['data-post-id'].strip(),
+            id='TC'+event_.findAll(attrs={"data-post-id" : True})[0]['data-post-id'].strip(),
             name=event_.findAll("h3", class_="card__title")[0].text.strip(),
             description=event_.findAll("p", class_="card__excerpt")[0].text.strip(),
             url=event_.findAll("h3", class_="card__title")[0].a['href'],
@@ -41,9 +42,7 @@ def getEventsTY():
             event.img = event.img['data-src']
         events.append(event)
     # merge duplicate events: Merge date, check by ID
-    #print(len(events))
     events = mergeDuplicateEvents(events)
-    #print(len(events))
     return events
 
 def getEventsJC():
@@ -76,7 +75,7 @@ def getEventsJC():
             prefecture_events = []
             for event_ in event_soup:
                 event = Event(
-                    id=event_.findAll(attrs={"data-post-id" : True})[0]['data-post-id'].strip(),
+                    id='JC'+event_.findAll(attrs={"data-post-id" : True})[0]['data-post-id'].strip(),
                     name=event_.findAll("h3", class_="card__title")[0].text.strip(),
                     description=event_.findAll("p", class_="card__excerpt")[0].text.strip(),
                     url=event_.findAll("h3", class_="card__title")[0].a['href'],
@@ -103,15 +102,15 @@ def getEventsJC():
 # START OF PROGRAM
 if __name__ == "__main__":
     # Crawl events
-    eventsTY = getEventsTY()
-    # eventsJC = getEventsJC()
+    eventsTY = getEventsTC()
+    eventsJC = getEventsJC()
     # Print events
-    events = eventsTY# + eventsJC
+    events = eventsTY + eventsJC
     for event in events:
        print(event)
-    # print('Found {} events in total'.format(len(events)))
     events = mergeDuplicateEvents(events)
-    # print('Found {} events in total'.format(len(events)))
+    database.insertEvents(events)
+    
 
 
 # TODO:
