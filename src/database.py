@@ -1,6 +1,6 @@
 """Database wrapper
 
-Simple interface to save and load data from database on Heroku.
+Simple interface to save and load event data of a postgres database.
 """
 
 import os
@@ -45,17 +45,21 @@ def createDatabase(table='events'):
     """Creates database if not present."""
     with DBConnector() as cur:
         cur.execute(f"""CREATE TABLE {table}
-                (id VARCHAR(30) PRIMARY KEY,
+                (s_id SERIAL PRIMARY KEY,
+                id VARCHAR,
                 name VARCHAR NOT NULL,
                 description TEXT,
                 url VARCHAR,
                 img VARCHAR,
-                date VARCHAR,
-                time VARCHAR,
+                date_start VARCHAR,
+                date_end VARCHAR,
+                date_fuzzy VARCHAR
+                time_start VARCHAR,
+                time_end VARCHAR,
                 location VARCHAR,
                 cost VARCHAR,
-                status VARCHAR(50),
-                category VARCHAR (50),
+                status VARCHAR,
+                category VARCHAR,
                 date_added TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT current_timestamp)
             ;""")
         print("Created database.")
@@ -68,20 +72,23 @@ def printTable(table='events'):
 def insertEvents(events, table='events'):
     """Inserts events into database"""
     with DBConnector() as cur:
-        query = f"""INSERT INTO {table} (id, name, description, url, img, date, time, location, cost, status, category) VALUES """
+        query = f"""INSERT INTO {table} (id, name, description, url, img, date_start, date_end, date_fuzzy, time_start, time_end, location, cost, status, category) VALUES """
         for event in events:
             id = event.id
             name = event.name
             description = event.description.replace("'","''")
             url = event.url
             img = event.img
-            date = event.date
-            time = event.time
+            date_start = event.date_start
+            date_end = event.date_end
+            date_fuzzy = event.date_fuzzy
+            time_start = event.time_start
+            time_end = event.time_end
             location = event.location
             cost = event.cost
             status = event.status
             category = event.category
-            query += f"('{id}', '{name}', '{description}', '{url}', '{img}', '{date}', '{time}', '{location}', '{cost}', '{status}', '{category}'),"
+            query += f"('{id}', '{name}', '{description}', '{url}', '{img}', '{date_start}', '{date_end}', '{date_fuzzy}', '{time_start}', '{time_end}', '{time_fuzzy}', '{location}', '{cost}', '{status}', '{category}'),"
         query = query.strip(',') + ' ON CONFLICT DO NOTHING;'
         cur.execute(query)
 

@@ -3,6 +3,16 @@
 Simple event class to define what attributes an event has, and other helpful functions like euqlity-checking.
 """
 
+import datetime
+import calendar
+
+def suffix(d):
+    return 'th' if 11<=d<=13 else {1:'st',2:'nd',3:'rd'}.get(d%10, 'th')
+def suffix2(w):
+    return {'Monday':'月','Tuesday':'火','Wednesday':'水','Thursday':'木','Friday':'金','Saturday':'土','Sunday':'日'}.get(w, '')
+def custom_strftime(format, t):
+    return t.strftime(format).replace('{S}', str(t.day) + suffix(t.day)).replace('{DAY}', suffix2(calendar.day_name[t.weekday()]))
+
 class Event(object):
     def __init__(self,
             id='', # Unique ID for every event
@@ -10,8 +20,11 @@ class Event(object):
             description='', # Event description
             url='', # URL where event was found
             img='', # Image URL
-            date='', # Date of event
-            time='', # Time of event
+            date_start='', # Start-date of event
+            date_end='', # End-date of event
+            date_fuzzy='', # If no hard date is given
+            time_start='', # Time of event
+            time_end='', # Time of event
             location='', # Event-Location
             cost='', # Entry-fee to event
             status='', # Cancelled, Online, ...
@@ -21,8 +34,11 @@ class Event(object):
         self.description = description
         self.url = url
         self.img = img
-        self.date = date
-        self.time = time
+        self.date_start = date_start
+        self.date_end = date_end
+        self.date_fuzzy = date_fuzzy
+        self.time_start = time_start
+        self.time_end = time_end
         self.location = location
         self.cost = cost
         self.status = status
@@ -34,27 +50,19 @@ class Event(object):
         return False
 
     def __str__(self):
-        text = """***{name}*** [{id}]
-        date: {date}
-        time: {time}
-        location: {location}
-        cost: {cost}
-        url: {url}
-        image-url: {img}
-        status: {status}
-        category: {category}
-        description: {description}"""
-        return text.format(id=self.id,
-            name=self.name,
-            description=self.description,
-            url=self.url,
-            img=self.img,
-            date=self.date,
-            time=self.time,
-            location=self.location,
-            cost=self.cost,
-            status=self.status,
-            category=self.category)
+        date_start = str(custom_strftime('%b {S} ({DAY}), %Y', datetime.datetime.strptime(self.date_start, '%Y-%m-%d')))
+        date_end = str(custom_strftime('%b {S} ({DAY}), %Y', datetime.datetime.strptime(self.date_end, '%Y-%m-%d'))) if self.date_start != self.date_end else ''
+        text = f"""***{self.name}*** [{self.id}]
+        date: {(date_start + ' - ' + date_end).strip(' - ') if not self.date_fuzzy else self.date_fuzzy}
+        time: {(self.time_start + ' - ' + self.time_end).strip(' - ')}
+        location: {self.location}
+        cost: {self.cost}
+        url: {self.url}
+        image-url: {self.img}
+        status: {self.status}
+        category: {self.category}
+        description: {self.description}"""
+        return text
 
 def mergeDuplicateEvents(events, check_duplicate_func=None, merge_func=None, verbose=False):
     """
@@ -66,17 +74,22 @@ def mergeDuplicateEvents(events, check_duplicate_func=None, merge_func=None, ver
         * merge_func: Pointer to function that merges the events. [Default: Only merge event-dates]
         * verbose: Flag, defines if merged events shall be printed
     """
+    # Merging functions
     def sameID(eventA, eventB):
+        """Checks if two events are duplicate by their ID"""
         return eventA.id == eventB.id
     def mergeDate(eventA, eventB):
+        """Merges two events by appending only their date"""
         eventA.date += ' & ' + eventB.date
         return eventA
 
+    # Fallback: If no check/merging functions given, use the default (merge if same ID; merge by date)
     if check_duplicate_func is None:
         check_duplicate_func = sameID
     if merge_func is None:
         merge_func = mergeDate
 
+    # Loop over entire event array
     i = 0
     while i < len(events):
         eventA = events[i]
@@ -88,6 +101,7 @@ def mergeDuplicateEvents(events, check_duplicate_func=None, merge_func=None, ver
                 events[i] = eventA
                 if verbose:
                     print("Merged events:\n\teventA: {}\n\teventB: {}".format(eventA.url,eventB.url))
+                    #print("Merged event:\n{}".format(eventA))
                 del events[j]
                 j -= 1
             j += 1
