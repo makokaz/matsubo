@@ -200,7 +200,7 @@ if __name__ == "__main__":
     for event in events:
        print(event)
     # events = mergeDuplicateEvents(events)
-    #database.insertEvents(events)
+    database.insertEvents(events)
     
 
 

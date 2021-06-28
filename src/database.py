@@ -51,11 +51,11 @@ def createDatabase(table='events'):
                 description TEXT,
                 url VARCHAR,
                 img VARCHAR,
-                date_start VARCHAR,
-                date_end VARCHAR,
-                date_fuzzy VARCHAR
-                time_start VARCHAR,
-                time_end VARCHAR,
+                date_start DATE,
+                date_end DATE,
+                date_fuzzy VARCHAR,
+                time_start TIME WITH TIME ZONE,
+                time_end TIME WITH TIME ZONE,
                 location VARCHAR,
                 cost VARCHAR,
                 status VARCHAR,
@@ -79,16 +79,17 @@ def insertEvents(events, table='events'):
             description = event.description.replace("'","''")
             url = event.url
             img = event.img
-            date_start = event.date_start
-            date_end = event.date_end
-            date_fuzzy = event.date_fuzzy
-            time_start = event.time_start
-            time_end = event.time_end
+            date_start = event.date_start if event.date_start else 'NULL'
+            date_end = event.date_end if event.date_end else 'NULL'
+            date_fuzzy = event.date_fuzzy if event.date_fuzzy else 'NULL'
+            time_start = event.time_start if event.time_start else 'NULL'
+            time_end = event.time_end if event.time_end else 'NULL'
             location = event.location
             cost = event.cost
             status = event.status
             category = event.category
-            query += f"('{id}', '{name}', '{description}', '{url}', '{img}', '{date_start}', '{date_end}', '{date_fuzzy}', '{time_start}', '{time_end}', '{time_fuzzy}', '{location}', '{cost}', '{status}', '{category}'),"
+            query += f"('{id}', '{name}', '{description}', '{url}', '{img}', '{date_start}', '{date_end}', '{date_fuzzy}', '{time_start}', '{time_end}', '{location}', '{cost}', '{status}', '{category}'),"
+        query = query.replace("'NULL'", "NULL")
         query = query.strip(',') + ' ON CONFLICT DO NOTHING;'
         cur.execute(query)
 
