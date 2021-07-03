@@ -9,7 +9,7 @@ import calendar
 def suffix(d):
     return 'th' if 11<=d<=13 else {1:'st',2:'nd',3:'rd'}.get(d%10, 'th')
 def suffix2(w):
-    return {'Monday':'月','Tuesday':'火','Wednesday':'水','Thursday':'木','Friday':'金','Saturday':'土','Sunday':'日'}.get(w, '')
+    return {'Monday':'月','Tuesday':'火','Wednesday':'水','Thursday':'木','Friday':'金','Saturday':'土','Sunday':'日'}.get(w,'')
 def custom_strftime(format, t):
     return t.strftime(format).replace('{S}', str(t.day) + suffix(t.day)).replace('{DAY}', suffix2(calendar.day_name[t.weekday()]))
 
@@ -27,8 +27,10 @@ class Event(object):
             time_end='', # Time of event
             location='', # Event-Location
             cost='', # Entry-fee to event
-            status='', # Cancelled, Online, ...
-            category=''): # Prefecture, University, ... used for visibility to channels
+            status='', # Cancelled, Online, Postponed, ...
+            other='', # Additional information tag
+            visibility='', # Prefecture, University, ... used for visibility to channels
+            source=''):
         self.id = id
         self.name = name
         self.description = description
@@ -42,7 +44,9 @@ class Event(object):
         self.location = location
         self.cost = cost
         self.status = status
-        self.category = category
+        self.other = other
+        self.visibility = visibility
+        self.source = source
 
     def __eq__(self, other):
         if isinstance(other, Event):
@@ -60,7 +64,9 @@ class Event(object):
         url: {self.url}
         image-url: {self.img}
         status: {self.status}
-        category: {self.category}
+        visibility: {self.visibility}
+        source: {self.source}
+        other: {self.other}
         description: {self.description}"""
         return text
 

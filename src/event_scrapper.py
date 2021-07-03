@@ -107,7 +107,8 @@ def getEventsTC():
             location=', '.join([loc.text for loc in event_.findAll("a", class_="location")]),
             cost=', '.join([cost.parent.text.strip() for cost in event_.findAll("div", title="Entry")]),
             status=', '.join([stat.text.strip().lower() for stat in event_.findAll("div", class_="event-status")]),
-            category='Kanto')
+            visibility='Kanto',
+            source='Web:TokyoCheapo')
         if event.img is not None: # Hotfix
             event.img = event.img['data-src']
         events.append(event)
@@ -165,7 +166,8 @@ def getEventsJC():
                     location=', '.join([loc.text for loc in event_.findAll("a", class_="location")]),
                     cost=', '.join([cost.parent.text.strip() for cost in event_.findAll("div", title="Entry")]),
                     status=', '.join([stat.text.strip().lower() for stat in event_.findAll("div", class_="event-status")]),
-                    category=region)
+                    visibility=region,
+                    source='Web:JapanCheapo')
                 if event.img is not None: # Hotfix
                     event.img = event.img['data-src']
                 prefecture_events.append(event)
@@ -181,26 +183,15 @@ def getEventsJC():
 
 # START OF PROGRAM
 if __name__ == "__main__":
-    # date_start, date_end, date_fuzzy = getTCDate(['1 Jan 2021', '2 Feb 2021'])
-    # print(date_start, date_end, date_fuzzy)
-    # time_start, time_end = getTCTime(['8pm JST', '9pm JST'])
-    # print(time_start, time_end)
-    #print(parse_date('')) # For nothing, not working
-    #print("".split(" h "))
-    #print("a ~ b".split(" h "))
-    #print(parse_date('7:00pm JST').timetz()) # For time with timezone
-    #print(parse_date('Jan').date()) # For date
-    #print(parse_date('Early Jan', fuzzy_with_tokens=True)) # For fuzzy keywords
-
     # Crawl events
-    eventsTY = getEventsTC()
-    eventsJC = getEventsJC()
+    events = []
+    events += getEventsTC()
+    #events += getEventsJC()
     # Print events
-    events = eventsTY + eventsJC
     for event in events:
        print(event)
     # events = mergeDuplicateEvents(events)
-    database.insertEvents(events)
+    database.eventDB.insertEvents(events)
     
 
 
