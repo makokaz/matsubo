@@ -196,6 +196,6 @@ if __name__ == "__main__":
 
 
 # TODO:
-# 1. Save events into Postgres
-# 2. Write Discord bot
-# 3. Extend crawled websites: Global Komaba, Todai ISSR, EMail, Facebook, ...
+# - Write Discord bot
+# - Extend crawled websites: Global Komaba, Todai ISSR, EMail, Facebook, ...
+# - Handle the status 'postponed' correctly in the database (currently, it believes a new event is created...)
