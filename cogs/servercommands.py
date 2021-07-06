@@ -63,11 +63,11 @@ class ServerCommands(commands.Cog):
     async def on_command_error(self, ctx, error):
         """Gets called when an error happens due to a false command by a user"""
         if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send('You forgot to specify a few arguments.')
+            await ctx.send(f'You forgot to specify a few arguments.\nType: `{self.bot.command_prefix}help <command>` to see the required arguments.')
         elif isinstance(error, commands.CommandNotFound):
             await ctx.send(f"I don't know this command... sorry 🙈\nType:\n   - `{self.bot.command_prefix}help` for general help\n   - `{self.bot.command_prefix}help <COMMAND>` to get specific help for this command")
         elif isinstance(error, commands.MissingPermissions):
-            await ctx.send(f"Too much power, this command, for you has, {ctx.message.author.display_name} 😬")
+            await ctx.send(f"Too much power, this command for you has, {ctx.message.author.display_name} 😬")
         else:
             await ctx.send(f"Something went wrong... 🙈\n   - Type `{self.bot.command_prefix}help` for general help\n   - Tag the admins with `@Admin` to ask for their help!")
 

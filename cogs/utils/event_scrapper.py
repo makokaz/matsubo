@@ -6,7 +6,7 @@ Scraps events from pre-defined websites.
 import sys
 from bs4 import BeautifulSoup as soup
 from urllib.request import urlopen
-import datetime
+import datetime, pytz
 from dateutil.parser import parse as parse_date
 import calendar
 from event import Event, mergeDuplicateEvents
@@ -31,11 +31,11 @@ def getTCDate(date):
     # Hotfix
     if len(date) > 1:
         try:
-            date_start, fuzzy = parse_date(date[0], default=datetime.datetime(datetime.datetime.now().year, 1, 1, 0, 0), fuzzy_with_tokens=True)
+            date_start, fuzzy = parse_date(date[0], default=datetime.datetime(datetime.datetime.now().year, 1, 1, 0, 0, tzinfo=pytz.timezone('Asia/Tokyo')), fuzzy_with_tokens=True)
         except Exception:
             date[0] = date[0] + ' ' + date[1].split()[1]
 
-    date_start, fuzzy = parse_date(date[0], default=datetime.datetime(datetime.datetime.now().year, 1, 1, 0, 0), fuzzy_with_tokens=True)
+    date_start, fuzzy = parse_date(date[0], default=datetime.datetime(datetime.datetime.now().year, 1, 1, 0, 0, tzinfo=pytz.timezone('Asia/Tokyo')), fuzzy_with_tokens=True)
     date_start = date_start.date()
     fuzzy = [a.strip() for a in fuzzy]
     date_end = date_start
@@ -47,7 +47,7 @@ def getTCDate(date):
         if fuzzy[0].strip() == 'End' or fuzzy[0].strip() == 'Late':
             date_start = parse_date(f"{date_start.year}-{date_start.month}-{'20'}").date()
     if len(date) > 1:
-        date_end, fuzzy = parse_date(date[1], default=datetime.datetime(datetime.datetime.now().year, 1, 1, 0, 0), fuzzy_with_tokens=True)
+        date_end, fuzzy = parse_date(date[1], default=datetime.datetime(datetime.datetime.now().year, 1, 1, 0, 0, tzinfo=pytz.timezone('Asia/Tokyo')), fuzzy_with_tokens=True)
         date_end = date_end.date()
         fuzzy = [a.strip() for a in fuzzy]
         if fuzzy[0]:
@@ -70,10 +70,10 @@ def getTCTime(time):
     time = time.split(" – ")
     if not time[0]:
         return '', ''
-    time_start = str(parse_date(time[0], default=datetime.datetime(1978, 1, 1, 0, 0)).timetz())
+    time_start = str(parse_date(time[0], default=datetime.datetime(datetime.datetime.now().year, 1, 1, 0, 0, tzinfo=pytz.timezone('Asia/Tokyo'))).timetz())
     time_end = ''
     if len(time) > 1:
-        time_end = str(parse_date(time[1], default=datetime.datetime(1978, 1, 1, 0, 0)).timetz())
+        time_end = str(parse_date(time[1], default=datetime.datetime(datetime.datetime.now().year, 1, 1, 0, 0), tzinfo=pytz.timezone('Asia/Tokyo')).timetz())
     return time_start, time_end
 
 

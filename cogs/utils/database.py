@@ -17,6 +17,7 @@ DB_USER = os.getenv(PREFIX+"DB_USER")
 DB_NAME = os.getenv(PREFIX+"DB_NAME")
 print(f"DATABASE-INFO: HOST={DB_HOST},USER={DB_HOST},PW={'*'*len(DB_PW)},NAME={DB_NAME}")
 
+
 class DBConnector():
     """
     Class helper to connect with a database using psycopg2.
@@ -45,7 +46,7 @@ class DBEvent():
     """
     def __init__(self,host=DB_HOST,user=DB_USER,password=DB_PW,database=DB_NAME):
         self.connector = DBConnector(host=host,user=user,password=password,database=database)
-    def createDatabase(self):
+    def createTable(self):
         """Creates database if not present."""
         with self.connector as cur:
             cur.execute(f"""CREATE TABLE events (
@@ -100,16 +101,82 @@ class DBEvent():
             cur.execute(query)
 
 
-def createAllDatabase():
-    """Creates all databases if they don't exist yet."""
-    eventDB.createDatabase()
+class DBDiscord():
+    """
+    Class helper for saving Discord-related data, for example:
+    - Where should events be posted
+    - ...
+    """
+    TABLE = "discord"
+    def __init__(self,host=DB_HOST,user=DB_USER,password=DB_PW,database=DB_NAME):
+        self.connector = DBConnector(host=host,user=user,password=password,database=database)
+    def createTable(self):
+        """Creates table if not present."""
+        with self.connector as cur:
+            cur.execute(f"""CREATE TABLE {self.TABLE} (
+                    guild_id INTEGER NOT NULL,
+                    channel_id INTEGER NOT NULL,
+                    visibility VARCHAR[],
+                    CONSTRAINT PK_discord PRIMARY KEY (guild_id, channel_id)
+                );""")
+    def executeQuery(self, query : str, retval : bool = False):
+        """Executes any query. Returns """
+        with self.connector as cur:
+            cur.execute(query)
+            if retval:
+                return cur.fetchall()
+            else:
+                return None
+    def printTable(self):
+        """Print all records in database"""
+        with self.connector as cur:
+            cur.execute(f"SELECT * FROM {self.TABLE};")
+            print(cur.fetchall())
+    def updateChannel(self, guild_id : int, channel_id : int, visibility : list[str]):
+        """Updates channel info in database. If it does not exist, it will be newly created"""
+        with self.connector as cur:
+            query = f"""INSERT INTO {self.TABLE} (guild_id, channel_id, visibility) VALUES (%s, %s, %s)
+                        ON CONFLICT ON CONSTRAINT PK_discord DO UPDATE SET visibility=EXCLUDED.visibility;"""
+            data = (guild_id, channel_id, visibility)
+            cur.execute(query,data)
+    def getChannelVisibility(self, guild_id : int, channel_id : int):
+        """Returns the visibility of events to this channel"""
+        with self.connector as cur:
+            cur.execute(f"SELECT visibility FROM {self.TABLE} WHERE (guild_id = %s, channel_id = %s);", (guild_id, channel_id))
+            return cur.fetchone()[0]
+    def removeChannel(self, guild_id : int, channel_id : int):
+        """Removes channel from table"""
+        with self.connector as cur:
+            cur.execute(f"DELETE FROM {self.TABLE} WHERE (guild_id = %s, channel_id = %s);", (guild_id, channel_id))
+    def getChannelWithVisibility(self):
+        """Returns all channels with their visibility"""
+        with self.connector as cur:
+            cur.execute(f"SELECT (guild_id, channel_id, visibility) FROM {self.TABLE};")
+            return cur.fetchall()
+
+
+
+def createDatabase():
+    """Creates database (all tables) if they don't exist yet."""
+    eventDB.createTable()
     print("[INFO] created database EVENTS.")
+    discordDB.createTable()
+    print("[INFO] created database DISCORD.")
 
 
 # Open database connections
 eventDB = DBEvent(host=DB_HOST, user=DB_USER, password=DB_PW, database=DB_NAME)
+discordDB = DBDiscord(host=DB_HOST, user=DB_USER, password=DB_PW, database=DB_NAME)
 
 
 if __name__ == '__main__':
-    # createAllDatabase()
-    eventDB.printTable()
+    # createDatabase()
+    #discordDB.createTable()
+    discordDB.updateChannel('ch1',['kanto'])
+    print(discordDB.getChannelVisibility('ch1'))
+    discordDB.removeChannel('ch1')
+    discordDB.printTable()
+    print("Special query:")
+    #print(discordDB.executeQuery(f"SELECT * FROM {discordDB.TABLE};"))
+    discordDB.executeQuery(f"INSERT INTO {discordDB.TABLE} (channel_id, visibility) VALUES ('ch7', ARRAY['kanto','kansai']);")
+    #print(discordDB.getChannelVisibility('abc'))

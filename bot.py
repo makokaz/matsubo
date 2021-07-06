@@ -3,14 +3,10 @@
 Scraps events and posts them onto discord.
 """
 
-# import event
-# import event_scrapper
-# import database
 # import asyncio
 import discord
 from discord.ext import commands
-import datetime
-import pytz
+from cogs.utils.utils import getJSTtime
 import os
 
 # Bot setup
@@ -64,11 +60,8 @@ async def on_guild_remove(guild):
     print(f"Got kicked from server: {guild.id}")
 
 
-def getJSTtime():
-    return datetime.datetime.now(tz=pytz.timezone('Asia/Tokyo')).strftime('%Y-%m-%d %H:%M:%S')
-
 def getAllCogs():
-    return [filename[:-3] if filename.endswith('.py') else '' for filename in os.listdir('./src/cogs')]
+    return [filename[:-3] if filename.endswith('.py') else '' for filename in os.listdir('./cogs')]
 
 
 for cog in getAllCogs():
