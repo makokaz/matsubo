@@ -30,7 +30,8 @@ class Event(object):
             status='', # Cancelled, Online, Postponed, ...
             other='', # Additional information tag
             visibility='', # Prefecture, University, ... used for visibility to channels
-            source=''):
+            source='', # Source where event was scrapped
+            date_added=None): # ONLY SET BY DATABASE: Date of when event was added to database
         self.id = id
         self.name = name
         self.description = description
@@ -47,6 +48,7 @@ class Event(object):
         self.other = other
         self.visibility = visibility
         self.source = source
+        self.date_added = date_added
 
     def __eq__(self, other):
         if isinstance(other, Event):
@@ -54,11 +56,9 @@ class Event(object):
         return False
 
     def __str__(self):
-        date_start = str(custom_strftime('%b {S} ({DAY}), %Y', datetime.datetime.strptime(self.date_start, '%Y-%m-%d')))
-        date_end = str(custom_strftime('%b {S} ({DAY}), %Y', datetime.datetime.strptime(self.date_end, '%Y-%m-%d'))) if self.date_start != self.date_end else ''
         text = f"""***{self.name}*** [{self.id}]
-        date: {(date_start + ' - ' + date_end).strip(' - ') if not self.date_fuzzy else self.date_fuzzy}
-        time: {(self.time_start + ' - ' + self.time_end).strip(' - ')}
+        date: {self.getDateRange() if not self.date_fuzzy else self.date_fuzzy}
+        time: {self.getTimeRange()}
         location: {self.location}
         cost: {self.cost}
         url: {self.url}
@@ -69,6 +69,25 @@ class Event(object):
         other: {self.other}
         description: {self.description}"""
         return text
+    
+    def getDateRange(self) -> str:
+        """Returns date-range of when event occurs"""
+        if self.date_fuzzy:
+            return self.date_fuzzy
+        # date_start = str(custom_strftime('%b {S} ({DAY}), %Y', datetime.datetime.strptime(self.date_start, '%Y-%m-%d')))
+        # date_end = str(custom_strftime('%b {S} ({DAY}), %Y', datetime.datetime.strptime(self.date_end, '%Y-%m-%d'))) if self.date_start != self.date_end else ''
+        date_start = str(custom_strftime('%b {S} ({DAY}), %Y', self.date_start))
+        date_end = str(custom_strftime('%b {S} ({DAY}), %Y', self.date_end)) if self.date_start != self.date_end else ''
+        return f"{date_start} - {date_end}".strip(' - ')
+
+    def getTimeRange(self) -> str:
+        """Returns time-range of when event occurs"""
+        if not self.time_start:
+            return '---'
+        time_start = self.time_start.strftime('%H:%M')
+        time_end = self.time_end.strftime('%H:%M') if self.time_end else ''
+        return f"{time_start} - {time_end}".strip(' - ')
+    
 
 def mergeDuplicateEvents(events, check_duplicate_func=None, merge_func=None, verbose=False):
     """

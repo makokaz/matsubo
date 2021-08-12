@@ -9,6 +9,7 @@ Simple discord bot cog that defines basic commands on a server for a bot:
 
 import discord
 from discord.ext import commands
+from .utils.utils import *
 
 class ServerCommands(commands.Cog):
     def __init__(self, bot):
@@ -56,7 +57,6 @@ class ServerCommands(commands.Cog):
     @commands.has_permissions(manage_messages=True)
     async def clear(self, ctx, amount : int):
         """Bulk clears the last #amount messages in the channel"""
-        #await ctx.send(f'The last {amount} messages will be deleted.')
         await ctx.channel.purge(limit=amount)
     
     @commands.Cog.listener()
@@ -69,7 +69,8 @@ class ServerCommands(commands.Cog):
         elif isinstance(error, commands.MissingPermissions):
             await ctx.send(f"Too much power, this command for you has, {ctx.message.author.display_name} 😬")
         else:
-            await ctx.send(f"Something went wrong... 🙈\n   - Type `{self.bot.command_prefix}help` for general help\n   - Tag the admins with `@Admin` to ask for their help!")
+            print_warning(f"The following error-command was raised:\n{error}\nThe message that raised the error was:\n{ctx.message}\n{ctx.message.content}")
+            await ctx.send(f"Something (possibly internally) went wrong... 🙈\n   - Type `{self.bot.command_prefix}help` for general help\n   - Tag the admins with `@Admin` to ask for their help!")
 
 
 def setup(bot):

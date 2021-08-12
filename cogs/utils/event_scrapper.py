@@ -9,8 +9,8 @@ from urllib.request import urlopen
 import datetime, pytz
 from dateutil.parser import parse as parse_date
 import calendar
-from event import Event, mergeDuplicateEvents
-import database
+from .event import Event, mergeDuplicateEvents
+from . import database
 
 
 def grabPage(url: str):
@@ -57,8 +57,8 @@ def getTCDate(date):
                 date_end = parse_date(f"{date_end.year}-{date_end.month}-{'20'}").date()
             if fuzzy[0].strip() == 'End' or fuzzy[0].strip() == 'Late':
                 date_end = parse_date(f"{date_end.year}-{date_end.month}-{calendar.monthrange(date_end.year, date_end.month)[1]}").date()
-    date_start = str(date_start)
-    date_end = str(date_end)
+    date_start = date_start
+    date_end = date_end
     if fuzzy[0] not in ['Early', 'Mid', 'End', 'Late']:
         fuzzy[0] = ''
     date_fuzzy = " ~ ".join(date) if fuzzy[0] else ''
@@ -70,10 +70,10 @@ def getTCTime(time):
     time = time.split(" – ")
     if not time[0]:
         return '', ''
-    time_start = str(parse_date(time[0], default=datetime.datetime(datetime.datetime.now().year, 1, 1, 0, 0, tzinfo=pytz.timezone('Asia/Tokyo'))).timetz())
+    time_start = parse_date(time[0], default=datetime.datetime(datetime.datetime.now().year, 1, 1, 0, 0, tzinfo=pytz.timezone('Asia/Tokyo'))).timetz()
     time_end = ''
     if len(time) > 1:
-        time_end = str(parse_date(time[1], default=datetime.datetime(datetime.datetime.now().year, 1, 1, 0, 0), tzinfo=pytz.timezone('Asia/Tokyo')).timetz())
+        time_end = parse_date(time[1], default=datetime.datetime(datetime.datetime.now().year, 1, 1, 0, 0, tzinfo=pytz.timezone('Asia/Tokyo'))).timetz()
     return time_start, time_end
 
 
@@ -180,22 +180,30 @@ def getEventsJC():
     sys.stdout.write("]\n") # this ends the progress bar
     return events
 
+def getEvents() -> list[Event]:
+    """Scraps all event sources. Returns list of scrapped events."""
+    events  = []
+    events += getEventsTC()
+    #events += getEventsJC()
+
+    # Print events
+    # print("Found the following events:")
+    # for event in events:
+    #    print(event)
+
+    # TODO: In JapanCheapo, a few events might happen on the border of 2 cities and are thus seen in both cities/categories/visibility. Merge these events before
+    # events = mergeDuplicateEvents(events)
+    return events
+
 
 # START OF PROGRAM
 if __name__ == "__main__":
     # Crawl events
-    events = []
-    events += getEventsTC()
-    #events += getEventsJC()
-    # Print events
-    for event in events:
-       print(event)
-    # events = mergeDuplicateEvents(events)
+    events = getEvents()
     database.eventDB.insertEvents(events)
     
 
 
 # TODO:
-# - Write Discord bot
 # - Extend crawled websites: Global Komaba, Todai ISSR, EMail, Facebook, ...
 # - Handle the status 'postponed' correctly in the database (currently, it believes a new event is created...)
