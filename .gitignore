@@ -10,3 +10,6 @@ __pycache__/
 # Pipfiles
 Pipfile
 Pipfile.lock
+
+# assets
+assets/
