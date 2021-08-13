@@ -3,7 +3,6 @@
 Simple event class to define what attributes an event has, and other helpful functions like euqlity-checking.
 """
 
-import datetime
 import calendar
 
 def suffix(d):
@@ -74,8 +73,6 @@ class Event(object):
         """Returns date-range of when event occurs"""
         if self.date_fuzzy:
             return self.date_fuzzy
-        # date_start = str(custom_strftime('%b {S} ({DAY}), %Y', datetime.datetime.strptime(self.date_start, '%Y-%m-%d')))
-        # date_end = str(custom_strftime('%b {S} ({DAY}), %Y', datetime.datetime.strptime(self.date_end, '%Y-%m-%d'))) if self.date_start != self.date_end else ''
         date_start = str(custom_strftime('%b {S} ({DAY}), %Y', self.date_start))
         date_end = str(custom_strftime('%b {S} ({DAY}), %Y', self.date_end)) if self.date_start != self.date_end else ''
         return f"{date_start} - {date_end}".strip(' - ')

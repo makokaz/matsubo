@@ -10,7 +10,6 @@ Simple discord bot cog that defines basic commands on a server for a bot:
 import discord
 from discord.ext import commands
 from .utils.utils import *
-import sys
 import traceback
 
 class ServerCommands(commands.Cog):

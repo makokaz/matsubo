@@ -5,8 +5,6 @@ Discord Bot Cog that scraps the web for events, and then posts them on defined c
 
 import os
 import discord
-import pprint
-from discord import colour
 from discord.ext import commands, tasks
 from itertools import cycle
 import datetime, pytz
