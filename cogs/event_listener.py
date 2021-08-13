@@ -5,6 +5,7 @@ Discord Bot Cog that scraps the web for events, and then posts them on defined c
 
 import os
 import discord
+import pprint
 from discord import colour
 from discord.ext import commands, tasks
 from itertools import cycle
@@ -14,7 +15,7 @@ from cogs.utils import database as db
 from cogs.utils.event import Event
 from cogs.utils.event_scrapper import getEvents
 
-SLEEP_STATUS = cycle([f"Counting 🐑... {i} {'💤' if i%2 else ''}" for i in range(1, 10)])
+SLEEP_STATUS = [f"Counting 🐑... {i} {'💤' if i%2 else ''}" for i in range(1, 10)]
 POST_TIMES = [datetime.time(hour=10, minute=0, second=0, tzinfo=pytz.timezone('Asia/Tokyo')), 
               datetime.time(hour=20, minute=0, second=0, tzinfo=pytz.timezone('Asia/Tokyo'))]
 SCRAP_SOURCES = {
@@ -40,7 +41,8 @@ class EventListener(commands.Cog):
     @tasks.loop(seconds=10)
     async def countingSheeps(self):
         """Counts sheeps. Very handy, because it shows the bot is still running."""
-        await self.bot.change_presence(status=discord.Status.idle, activity=discord.Game(next(SLEEP_STATUS)))
+        status_cycle = cycle(SLEEP_STATUS)
+        await self.bot.change_presence(status=discord.Status.idle, activity=discord.Game(next(status_cycle)))
     def cog_unload(self):
         self.countingSheeps.cancel()
     @countingSheeps.before_loop
@@ -48,8 +50,8 @@ class EventListener(commands.Cog):
         await self.bot.wait_until_ready()
     @countingSheeps.after_loop
     async def on_countingSheeps_cancel(self):
-        if self.countingSheeps.is_being_cancelled():
-            await self.bot.change_presence(status=discord.Status.idle, activity=discord.Activity(name='Internet', type=discord.ActivityType.listening))
+        # if self.countingSheeps.is_being_cancelled():
+        #     await self.bot.change_presence(status=discord.Status.idle, activity=discord.Activity(name='Internet', type=discord.ActivityType.listening))
         pass
 
     @tasks.loop(hours=1)
@@ -64,6 +66,7 @@ class EventListener(commands.Cog):
                 break
         print(f"Next Web-scrapping in {dt.seconds}s")
         await asyncio.sleep(dt.seconds)
+        self.countingSheeps.cancel()
         await self.scrapEvents()
         await self.notifyAllChannels()
     @loop_scrapNotify.before_loop
@@ -75,15 +78,18 @@ class EventListener(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def scrap(self, ctx):
         """(ADMIN ONLY) Searches the web for new events, and posts updates to all subscibed channels."""
-        await ctx.send(f"Scanning the web... this might take a while. Come back later again.")
+        self.countingSheeps.cancel()
+
+        await ctx.send(f"Scanning the web... this might take a while :coffee:")
         await self.scrapEvents()
         await self.notifyAllChannels()
+        await ctx.send(f"That's all I could find :innocent:")
+
+        await asyncio.sleep(2) #bugfix: wait before change_presence is called too fast!
+        self.countingSheeps.start()
 
     async def scrapEvents(self):
         """Searches the web for new events, and puts them into the database"""
-        self.countingSheeps.cancel()
-        await asyncio.sleep(3)
-
         print("Scrapping events...")
         await self.bot.change_presence(status=discord.Status.online, activity=discord.Game('Scrapping the web...'))
         events = getEvents()
@@ -91,9 +97,6 @@ class EventListener(commands.Cog):
         # for event in events:
         #    print(event)
         db.eventDB.insertEvents(events)
-
-        await asyncio.sleep(3) #bugfix: wait before change_presence is called too fast!
-        self.countingSheeps.start()
         print("Finished scrapping events!")
         pass
 
@@ -118,13 +121,16 @@ class EventListener(commands.Cog):
         print(f"Notifying channel #{channel}:{channel.id} of new events")
         messages, idx = await self.findEventMessages(channel, events)
         for i, event in enumerate(events):
-            if i in idx:
-                # Update the message with new event details
+            if i in idx:  # Update the message with new event details
                 message = messages[idx.index(i)]
-                #TODO: Only edit if embed has changed -> check by hash()
-                message.edit(embed=self.getEmbed(event))
+                # Only edit if embed has changed
+                if self.embedsAreEqual(message.embeds[0], self.getEmbed(event)):
+                    continue
+                # Edit message
+                await message.edit(embed=self.getEmbed(event))
                 print(f'Edited event in message: {event.name} [{event.id}] -> Message-ID:{message.id}')
-            else:
+                pass
+            else:  # Post new event
                 if event.status.lower() in ['cancelled','canceled']:
                     continue
                 await channel.send(content=f'***{event.name} [{event.id}]***', embed=self.getEmbed(event))
@@ -136,18 +142,20 @@ class EventListener(commands.Cog):
         """Finds messages in given channel of given events. Returns messages and the indices of the events in the provided list."""
         messages = []
         idx = []
-        async for message in channel.history(limit=200):
-            print(f"len(embed):{len(message.embeds)}, Message:\n{message}")
+        async for message in channel.history(limit=10):
             if not len(message.embeds):
                 continue
-            print('Enter2')
-            if message.author is not self.bot.user:
+            if message.author != self.bot.user:
                 continue
-            print('Enter3')
             embed = message.embeds[0]
-            #TODO
-
-            print(message)
+            # Find index in list events that matches the discord message event
+            datefield = next((field for field in embed.fields if field.value.startswith(':date:')))
+            i = next((i for i,event in enumerate(events) if event.id==embed.footer.text.split()[-1] and f':date: ***{event.getDateRange()}***'==datefield.value), None)
+            if i is None:
+                continue
+            # Append message and index to return-lists
+            messages.append(message)
+            idx.append(i)
         return messages, idx
 
     def getEmbed(self, event: Event) -> discord.Embed:
@@ -174,13 +182,16 @@ class EventListener(commands.Cog):
         # Set footer & thumbnail
         if event.source in SCRAP_SOURCES.keys():
             embed.set_footer(
-                text=SCRAP_SOURCES[event.source]['footer'],
+                text=f"{SCRAP_SOURCES[event.source]['footer']} • {event.id}",
                 icon_url=SCRAP_SOURCES[event.source]['icon']
             )
             embed.set_thumbnail(url=SCRAP_SOURCES[event.source]['thumbnail'])
         else:
             embed.set_footer(text=[event.source])
 
+        # Add field: CANCELLED
+        if event.status.lower() in ['cancelled', 'canceled']:
+            embed.add_field(name=':x: ***This event has been CANCELLED***', value='\u200B', inline=False)
         # Add field: Date
         embed.add_field(name='\u200B', value=f':date: ***{event.getDateRange()}***', inline=True)
         # Add field: Time
@@ -199,6 +210,34 @@ class EventListener(commands.Cog):
         embed.add_field(name='\u200B', value=f":round_pushpin: ***{loc_string}***", inline=True)
         
         return embed
+
+    def embedsAreEqual(self, embed1:discord.Embed, embed2:discord.Embed) -> bool:
+        if embed1.title != embed2.title:
+            return False
+        if embed1.url != embed2.url:
+            return False
+        if embed1.description != embed2.description:
+            return False
+        if embed1.image.url != embed2.image.url:
+            return False
+        if embed1.footer.text != embed2.footer.text:
+            return False
+        if embed1.footer.icon_url != embed2.footer.icon_url:
+            return False
+        if embed1.thumbnail.url != embed2.thumbnail.url:
+            return False
+
+        # Check if fields are equal
+        if len(embed1.fields) != len(embed2.fields):
+            return False
+        fieldsAreEqual = next((False for i in range(len(embed1.fields)) if
+            embed1.fields[i].name   != embed2.fields[i].name   or
+            embed1.fields[i].value  != embed2.fields[i].value  or
+            embed1.fields[i].inline != embed2.fields[i].inline
+        ), True)
+        if not fieldsAreEqual:
+            return False
+        return True
 
     @commands.command()
     @commands.has_permissions(administrator=True)

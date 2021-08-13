@@ -10,6 +10,8 @@ Simple discord bot cog that defines basic commands on a server for a bot:
 import discord
 from discord.ext import commands
 from .utils.utils import *
+import sys
+import traceback
 
 class ServerCommands(commands.Cog):
     def __init__(self, bot):
@@ -60,8 +62,17 @@ class ServerCommands(commands.Cog):
         await ctx.channel.purge(limit=amount)
     
     @commands.Cog.listener()
-    async def on_command_error(self, ctx, error):
+    async def on_command_error(self, ctx, error:Exception):
         """Gets called when an error happens due to a false command by a user"""
+        # This prevents any commands with local handlers being handled here in on_command_error.
+        if hasattr(ctx.command, 'on_error'):
+            return
+
+        # Allows us to check for original exceptions raised and sent to CommandInvokeError.
+        # If nothing is found. We keep the exception passed to on_command_error.
+        error = getattr(error, 'original', error)
+        
+        # General Error handling
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(f'You forgot to specify a few arguments.\nType: `{self.bot.command_prefix}help <command>` to see the required arguments.')
         elif isinstance(error, commands.CommandNotFound):
@@ -69,7 +80,9 @@ class ServerCommands(commands.Cog):
         elif isinstance(error, commands.MissingPermissions):
             await ctx.send(f"Too much power, this command for you has, {ctx.message.author.display_name} 😬")
         else:
-            print_warning(f"The following error-command was raised:\n{error}\nThe message that raised the error was:\n{ctx.message}\n{ctx.message.content}")
+            print_warning("The following error-command was raised:")
+            print_warning(''.join(traceback.format_exception(type(error), error, error.__traceback__)))
+            print_warning(f"The message that raised the error was:\n[Guild: '{ctx.message.guild}':{ctx.message.guild.id};  Channel: #{ctx.message.channel}:{ctx.message.channel.id};  Message-ID: {ctx.message.id};  User: {ctx.message.author}]\n{ctx.message.content}")
             await ctx.send(f"Something (possibly internally) went wrong... 🙈\n   - Type `{self.bot.command_prefix}help` for general help\n   - Tag the admins with `@Admin` to ask for their help!")
 
 
