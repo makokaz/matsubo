@@ -275,3 +275,10 @@ class EventListener(commands.Cog):
 
 def setup(bot):
     bot.add_cog(EventListener(bot))
+
+
+# TODO:
+# - Post 'events of next week' on Saturday
+# - One day before the event, remind that the event is starting
+# - Implement command that returns which events are happening {currently; in given period; this month;  in this area; ...}
+# - Extend sources of event scrapping
