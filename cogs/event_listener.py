@@ -60,7 +60,7 @@ SCRAP_SOURCES = {
 SLEEP_STATUS = [f"Counting 🐑... {i} {'💤' if i%2 else ''}" for i in range(1, 10)]
 
 # How many past messages are checked per channel for event searching
-SEARCH_DEPTH = 10
+SEARCH_DEPTH = 100
 
 
 #########################
