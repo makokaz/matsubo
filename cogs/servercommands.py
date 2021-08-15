@@ -68,7 +68,7 @@ class ServerCommands(commands.Cog):
             return
 
         # If second character of the message is not a letter, then it was not a command (e.g. '...' or '. ')
-        if ctx.message.content[1].isalpha():
+        if not ctx.message.content[1].isalpha():
             return
 
         # Allows us to check for original exceptions raised and sent to CommandInvokeError.

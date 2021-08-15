@@ -256,6 +256,11 @@ class EventListener(commands.Cog):
                 from_date=(datetime.datetime.now(tz=LOCAL_TZ)+datetime.timedelta(days=REMIND_BEFORE_DAYS)).date(),
                 until_date=(datetime.datetime.now(tz=LOCAL_TZ)+datetime.timedelta(days=REMIND_BEFORE_DAYS)).date()
             )
+            
+            # Remove events that are cancelled anyways -> no need to remind
+            for event in events:
+                if event.status.lower() in ['cancelled','canceled']:
+                    events.remove(event)
 
             if not events:
                 print(f"-> Channel #{channel}:{channel.id} has no currently happening events")
