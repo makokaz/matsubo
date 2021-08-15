@@ -5,12 +5,8 @@ Simple event class to define what attributes an event has, and other helpful fun
 
 import calendar
 
-def suffix(d):
-    return 'th' if 11<=d<=13 else {1:'st',2:'nd',3:'rd'}.get(d%10, 'th')
-def suffix2(w):
-    return {'Monday':'月','Tuesday':'火','Wednesday':'水','Thursday':'木','Friday':'金','Saturday':'土','Sunday':'日'}.get(w,'')
-def custom_strftime(format, t):
-    return t.strftime(format).replace('{S}', str(t.day) + suffix(t.day)).replace('{DAY}', suffix2(calendar.day_name[t.weekday()]))
+from . import utils
+
 
 class Event(object):
     def __init__(self,
@@ -73,8 +69,8 @@ class Event(object):
         """Returns date-range of when event occurs"""
         if self.date_fuzzy:
             return self.date_fuzzy
-        date_start = str(custom_strftime('%b {S} ({DAY}), %Y', self.date_start))
-        date_end = str(custom_strftime('%b {S} ({DAY}), %Y', self.date_end)) if self.date_start != self.date_end else ''
+        date_start = str(utils.custom_strftime('%b {S} ({DAY}), %Y', self.date_start))
+        date_end = str(utils.custom_strftime('%b {S} ({DAY}), %Y', self.date_end)) if self.date_start != self.date_end else ''
         return f"{date_start} - {date_end}".strip(' - ')
 
     def getTimeRange(self) -> str:
@@ -97,19 +93,34 @@ def mergeDuplicateEvents(events, check_duplicate_func=None, merge_func=None, ver
         * verbose: Flag, defines if merged events shall be printed
     """
     # Merging functions
-    def sameID(eventA, eventB):
-        """Checks if two events are duplicate by their ID"""
-        return eventA.id == eventB.id
-    def mergeDate(eventA, eventB):
+    def sameIDDate(eventA:Event, eventB:Event):
+        """Checks if two events are duplicate by their ID and start_date"""
+        if not (eventA and eventB):
+            utils.print_warning("One of the two events was `None`!")
+            return False
+        return eventA.id == eventB.id and eventA.date_start == eventB.date_start
+    def mergeDate(eventA:Event, eventB:Event):
         """Merges two events by appending only their date"""
+        if not (eventA and eventB):
+            utils.print_warning("One of the two events was `None`!")
+            if eventA:
+                return eventA
+            return eventB
         eventA.date += ' & ' + eventB.date
         return eventA
+    def dontmerge(eventA:Event, eventB:Event):
+        """Simply discards eventB. Does not merge metadata."""
+        return eventA
+
+    # Process mergefunc
+    if type(merge_func) is str:
+        merge_func = {'mergeDate':mergeDate,'dontmerge':dontmerge}.get(merge_func, dontmerge)
 
     # Fallback: If no check/merging functions given, use the default (merge if same ID; merge by date)
     if check_duplicate_func is None:
-        check_duplicate_func = sameID
+        check_duplicate_func = sameIDDate
     if merge_func is None:
-        merge_func = mergeDate
+        merge_func = dontmerge
 
     # Loop over entire event array
     i = 0

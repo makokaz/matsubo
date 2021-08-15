@@ -4,6 +4,7 @@ Discord Bot Cog that scraps the web for events, and then posts them on subscribe
 """
 
 import os
+from re import S
 import discord
 import asyncio
 import datetime
@@ -40,8 +41,8 @@ POST_TIMES = '0 20 * * 5-6'  # Every Saturday & Sunday at 20:00
 # POST_TIMES = '0-59/2 * * * *'  # for DEBUGGING
 
 # Time when it shall be reminded of events happening today/tomorrow/...
-# REMIND_TIMES = '* 10 * * *'  # Every day at 10:00
-REMIND_TIMES = '0-59 * * * *'  # for DEBUGGING
+REMIND_TIMES = '* 10 * * *'  # Every day at 10:00
+# REMIND_TIMES = '0-59 * * * *'  # for DEBUGGING
 REMIND_BEFORE_DAYS = 0  # how many days before the reminder should be done
 
 # Define (logo, thumbnail, footer) for all sources that are scrapped
@@ -114,22 +115,22 @@ class EventListener(commands.Cog):
     async def loop_scrap(self):
         """[Background task] Scraps web at specified times for new events."""
         await self.bot.wait_until_ready()
-        self.countingSheeps.cancel()
+        self.countingSheeps.cancel() #TODO check if already cancelled
         await asyncio.sleep(1) #bugfix: wait before change_presence is called too fast!
         await self.scrap()
         await asyncio.sleep(1) #bugfix: wait before change_presence is called too fast!
-        self.countingSheeps.start()
+        self.countingSheeps.start() #TODO check if already started
         print(f"Next run time of LOOP_SCRAP():  {self.scheduler.get_job('scrap').next_run_time}")
 
     @utils.log_call
     async def loop_post(self):
         """[Background task] Notifies all subscribed channels of new events."""
         await self.bot.wait_until_ready()
-        self.countingSheeps.cancel()
+        self.countingSheeps.cancel() #TODO check if already cancelled
         await asyncio.sleep(1) #bugfix: wait before change_presence is called too fast!
         await self.notify()
         await asyncio.sleep(1) #bugfix: wait before change_presence is called too fast!
-        self.countingSheeps.start()
+        self.countingSheeps.start() #TODO check if already started
         print(f"Next run time of LOOP_POST():  {self.scheduler.get_job('post').next_run_time}")
     
     @utils.log_call
@@ -139,11 +140,11 @@ class EventListener(commands.Cog):
         The global variable `REMIND_BEFORE_DAYS`` defines how many days prior to the start of the event the reminder will be issued.
         """
         await self.bot.wait_until_ready()
-        self.countingSheeps.cancel()
+        self.countingSheeps.cancel() #TODO check if already cancelled
         await asyncio.sleep(1) #bugfix: wait before change_presence is called too fast!
         await self.remind()
         await asyncio.sleep(1) #bugfix: wait before change_presence is called too fast!
-        self.countingSheeps.start()
+        self.countingSheeps.start() #TODO check if already started
         print(f"Next run time of LOOP_REMIND():  {self.scheduler.get_job('remind').next_run_time}")
     
     async def scrap(self):
@@ -267,45 +268,42 @@ class EventListener(commands.Cog):
             # Remind channel
             ################
             print(f"-> Reminding channel #{channel}:{channel.id} of currently happening events")
-            for event in events:
-                print(event)
+            # for event in events:
+            #     print(event)
 
-            # Find reminder that has already been posted to Discord
+            # Find all event embeds for the reminder, so the embed-URLs can be set as links in the reminder message
+            event_messages, idx = await self.findEventMessages(channel, events)
+            events_t:list[tuple[Event,str]] = [] # list of tuples (event, discord-url)
+            for i, event in enumerate(events):
+                url = None
+                if i in idx:
+                    url = event_messages[idx.index(i)].jump_url
+                events_t.append((event,url))
+            
+            # Find today's reminder that has already been posted to Discord (if it even exists)
             message = await self.findReminderMessage(channel, events)
-            #TODO find all event embeds for the reminder, so the embed-URLs can be set as links in the reminder message
 
-            if message:
-                #TODO Edit reminder, in case they changed -> Or delete it, and send a new reminder?
-                pass
-            else:
-                #TODO Construct reminder
-                pass
-
+            reminder = self.getReminder(events_t)
+            if message:  # In case event information has changed, delete reminder and create a new one
+                if message.content != reminder:  # If reminders are different, then event information must have changed last minute!
+                    # Delete reminder, then post new one
+                    reminder = reminder.replace('\n','  (UPDATED!) :sparkles:\nEvent information has changed last minute!\n',1)
+                    if message.content != reminder:
+                        try:
+                            await channel.send(content=reminder)
+                            print(f'Updated reminder in channel: {event.name} [{event.id}] -> #{channel}:{channel.id}')
+                            await message.delete()
+                        except discord.errors.HTTPException:
+                            utils.print_warning("Message is too big, couldn't sent it.")
+                    else:  # Reminder must not be changed
+                        print(f'Reminder does not need to be updated in channel: {event.name} [{event.id}] -> #{channel}:{channel.id}')
+                else:  # Reminder must not be changed
+                    print(f'Reminder does not need to be updated in channel: {event.name} [{event.id}] -> #{channel}:{channel.id}')
+            else:  # Send reminder
+                await channel.send(content=reminder)
+                print(f'Reminded channel: {event.name} [{event.id}] -> #{channel}:{channel.id}')
+        
         print('### Reminded all channels!')
-
-    async def findReminderMessage(self, channel: commands.TextChannelConverter, events: list[Event]) -> discord.Message:
-        """Finds latest reminder message of currently happening events.
-
-        Parameters
-        ------------
-        channel: :class:`discord.TextChannel`
-            The channel where to search for the reminder.
-        events: :class:`list`[:class:`Event`]
-            The events to check if they have all been mentioned in the reminder.
-        """
-        #TODO
-        pass
-
-    def getReminder(self, events:list[Event]) -> str:
-        """Creates reminder message and returns as string.
-
-        Parameters
-        ------------
-        events: :class:`list`[:class:`Event`]
-            The list of currently happening events.
-        """
-        #TODO
-        pass
 
     async def findEventMessages(self, channel: commands.TextChannelConverter, events: list[Event]) -> tuple[list[discord.Message],list[int]]:
         """Finds events that have already been posted to discord.
@@ -330,19 +328,74 @@ class EventListener(commands.Cog):
             if message.author != self.bot.user:
                 continue
 
-            # Find index in list events that matches the discord message event
+            # Find message that has an Event embedded
             embed = message.embeds[0]
-            datefield = next((field for field in embed.fields if field.value.startswith(':date:')))
-            i = next((i for i,event in enumerate(events) if event.id==embed.footer.text.split()[-1] and f':date: ***{event.getDateRange()}***'==datefield.value), None)
-            
-            if i is None:
+            try: # Check if embed has a date-field -> then it must be the Event-embed!
+                datefield = next((field for field in embed.fields if field.value.startswith(':date:')))
+            except StopIteration:
+                # message has not an event-embed
+                continue
+
+            # Find index in list events that matches the discord message event
+            index = next((i for i,event in enumerate(events) if event.id==embed.footer.text.split()[-1] and f':date: ***{event.getDateRange()}***'==datefield.value), None)
+            if index is None:
                 continue
 
             # Append message and index to return-lists
             messages.append(message)
-            idx.append(i)
+            idx.append(index)
         return messages, idx
 
+    async def findReminderMessage(self, channel: commands.TextChannelConverter, events: list[Event]) -> discord.Message:
+        """Finds today's reminder message of currently happening events.
+
+        Note:
+        This method does only check if a reminder has been sent TODAY already.
+        It does not check for the latest reminder message.
+        If no reminder message has been sent yet today, of course no message is found.
+
+        Parameters
+        ------------
+        channel: :class:`discord.TextChannel`
+            The channel where to search for the reminder.
+        events: :class:`list`[:class:`Event`]
+            The events to check if they have all been mentioned in the reminder.
+        """
+        today = datetime.datetime.now(tz=LOCAL_TZ).date()
+        header = f"***\*\*\*Reminder   [{utils.custom_strftime('%b {S} ({DAY}), %Y', today)}]\*\*\****"
+        async for message in channel.history(limit=SEARCH_DEPTH):
+            if message.content.startswith('***\*\*\*Reminder'):
+                # This must be the lastest reminder message!
+                # Now check if it is from today.
+                if message.content.startswith(header):  # It is a reminder from today! Return the message
+                    return message
+                else:  # The reminder is old. So there exists no reminder from today yet
+                    return None
+        return None  # No reminder message found
+
+    def getReminder(self, events_t:list[tuple[Event,str]]) -> str:
+        """Creates reminder message and returns as string.
+
+        Parameters
+        ------------
+        events: :class:`list`[:class:`tuple`[:class:`Event`,:class:`str`]]
+            List of tuples.
+            First item of the tuple is the currently happening event,
+            second item is the URL to the discord message.
+        """
+        today = datetime.datetime.now(tz=LOCAL_TZ).date()
+        string = f"***\*\*\*Reminder   [{utils.custom_strftime('%b {S} ({DAY}), %Y', today)}]\*\*\****"
+        string += f"\nThere are {len(events_t)} events starting { {0:'today',1:'tomorrow'}.get(REMIND_BEFORE_DAYS, f'in {REMIND_BEFORE_DAYS} days') }!"
+        for event, url in events_t:
+            if not url:
+                url = event.url  # Might still be an empty string, e.g. when emails do not have an url to the event
+            if url:
+                # string += f"\n   • [{event.name} [{event.id}]:  {event.getDateRange()}]({url})"
+                string += f"\n   • **{event.name} [{event.id}]:  {event.getDateRange()}**\n     *<{url}>*"
+            else:
+                # string += f"\n   • **{event.name} [{event.id}]:  {event.getDateRange()}**"
+                string += f"\n   • **{event.name} [{event.id}]:  {event.getDateRange()}**"
+        return string
 
     def getEmbed(self, event: Event) -> discord.Embed:
         """Returns discord.Embed object of given event
@@ -444,6 +497,7 @@ class EventListener(commands.Cog):
     
     @commands.command(name='scrap')
     @commands.has_permissions(administrator=True)
+    @utils.log_call
     async def cmd_scrap(self, ctx):
         """Searches the web for new events, and posts updates to all subscibed channels."""
         self.countingSheeps.cancel()
@@ -458,6 +512,7 @@ class EventListener(commands.Cog):
 
     @commands.command(name='subscribe')
     @commands.has_permissions(administrator=True)
+    @utils.log_call
     async def cmd_subscribe(self, ctx, *topics):
         """Subscribes channel the message was sent in. Will post events to this channel."""
         topics = set(topics)
@@ -467,6 +522,7 @@ class EventListener(commands.Cog):
 
     @commands.command(name='unsubscribe')
     @commands.has_permissions(administrator=True)
+    @utils.log_call
     async def cmd_unsubscribe(self, ctx, *topics):
         """Unsubscribes topics from the channel the message was sent in. If no topics are given, the entire channel will be unsubscribed."""
         if len(topics):
@@ -483,6 +539,7 @@ class EventListener(commands.Cog):
 
     @commands.command(name='getsubscribedtopics')
     @commands.has_permissions(administrator=True)
+    @utils.log_call
     async def cmd_getSubscribedTopics(self, ctx):
         """Returns topics this channel is subscribed to."""
         topics_all = db.discordDB.getChannelVisibility(ctx.channel.id)
@@ -497,7 +554,6 @@ def setup(bot):
 
 
 # TODO:
-# - One day before the event, remind that the event is starting
 # - Implement command that returns which events are happening {currently; in given period; this month;  in this area; ...}
 # - Extend sources of event scrapping
 # - Add list of topics one can subscribe

@@ -194,6 +194,8 @@ def getEventsJC():
         # Update progressbar
         sys.stdout.write("-")
         sys.stdout.flush()
+    # merge duplicate events: Merge date, check by ID
+    #events = mergeDuplicateEvents(events,verbose=True)
     sys.stdout.write("]\n") # this ends the progress bar
     return events
 
@@ -201,7 +203,7 @@ def getEvents() -> list[Event]:
     """Scraps all event sources. Returns list of scrapped events."""
     events  = []
     events += getEventsTC()
-    #events += getEventsJC()
+    events += getEventsJC()
 
     # Print events
     # print("Found the following events:")
@@ -209,7 +211,7 @@ def getEvents() -> list[Event]:
     #    print(event)
 
     # TODO: In JapanCheapo, a few events might happen on the border of 2 cities and are thus seen in both cities/categories/visibility. Merge these events before
-    # events = mergeDuplicateEvents(events)
+    events = mergeDuplicateEvents(events)
     return events
 
 

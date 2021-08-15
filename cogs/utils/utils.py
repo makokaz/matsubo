@@ -4,11 +4,50 @@ Simple utils python file for handy functions that are needed everywhere in the c
 """
 
 import asyncio
+import calendar
 import datetime
 import pytz
 # import builtins
 
 from functools import wraps
+
+
+def day_suffix(d:int) -> str:
+    """Returns day-suffix 'st', 'nd', 'rd', 'th' for a day of a month.
+
+    For example, the 21st of August -> returns 'st'.
+
+    Parameters
+    ----------
+    d: :class:`int`
+        Integer that represents the day of the month.
+        Ranges from 1-31(max).
+    """
+    return 'th' if 11<=d<=13 else {1:'st',2:'nd',3:'rd'}.get(d%10, 'th')
+def day_kanji(w:str) -> str:
+    """Returns a Japanese Kanji that represents a weekday.
+    
+    Parameters
+    ----------
+    w: :class:`str`
+        String that represents the day of the week, for example 'Monday'.
+    """
+    return {'Monday':'月','Tuesday':'火','Wednesday':'水','Thursday':'木','Friday':'金','Saturday':'土','Sunday':'日'}.get(w,'')
+def custom_strftime(format:str, t:datetime.datetime) -> str:
+    """Returns special date format as string.
+
+    That means:
+        - `{S}` in a string will be replaced with the day + suffix
+        - `{DAY}` will be replaced with the Kanji of the weekday
+    
+    Parameters
+    ----------
+    format: :class:`str`
+        String with special keys `{S}` and `{DAY}` to be formatted.
+    t: :class:`datetime`
+        The date from where to fetch the information.
+    """
+    return t.strftime(format).replace('{S}', str(t.day) + day_suffix(t.day)).replace('{DAY}', day_kanji(calendar.day_name[t.weekday()]))
 
 
 def getJSTtime():
