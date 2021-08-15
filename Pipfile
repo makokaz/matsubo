@@ -1,0 +1,22 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+discord = "*"
+bs4 = "*"
+requests = "*"
+psycopg2 = "*"
+datetime = "*"
+python-dateutil = "*"
+apscheduler = "*"
+
+[dev-packages]
+autopep8 = "*"
+
+[requires]
+python_version = "3.9"
+
+[pipenv]
+allow_prereleases = true

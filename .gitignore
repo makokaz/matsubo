@@ -8,7 +8,6 @@ __pycache__/
 .env
 
 # Pipfiles
-Pipfile
 Pipfile.lock
 
 # assets
