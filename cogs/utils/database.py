@@ -7,7 +7,9 @@ import os
 import psycopg2
 import psycopg2.extras
 import datetime
+
 from .event import Event
+from . import utils
 
 # Setup database
 DB_HOST = os.getenv("DB_HOST")
@@ -46,6 +48,8 @@ class DBEvent():
     TABLE = "events"
     def __init__(self,host=DB_HOST,user=DB_USER,password=DB_PW,database=DB_NAME):
         self.connector = DBConnector(host=host,user=user,password=password,database=database)
+    def __str__(self):
+        return self.TABLE
     def createTable(self):
         """Creates database if not present."""
         with self.connector as cur:
@@ -137,6 +141,8 @@ class DBDiscord():
     TABLE = "discord"
     def __init__(self,host=DB_HOST,user=DB_USER,password=DB_PW,database=DB_NAME):
         self.connector = DBConnector(host=host,user=user,password=password,database=database)
+    def __str__(self):
+        return self.TABLE
     def createTable(self):
         """Creates table if not present."""
         with self.connector as cur:
@@ -183,14 +189,37 @@ class DBDiscord():
             cur.execute(f"SELECT channel_id, visibility FROM {self.TABLE};")
             return cur.fetchall()
 
+def dropTables(*tables):
+    """Attempts to drops given tables."""
+    for table in tables:
+        if not table:
+            return
+        try:
+            with table.connector as cur:
+                cur.execute(f"DROP TABLE IF EXISTS {table.TABLE};")
+            utils.print_warning(f'!! Dropped table {table.TABLE} !!')
+        except Exception:
+            print(f"Table {table.TABLE} did not exist. Nothing to drop.")
 
+def createTables(*tables, recreate=False):
+    """Creates given tables.
+    
+    If flag `recreate` is set to `True`, it will also attempt to delete the tables before if they already exist.
+    """
+    for table in tables:
+        if not table:
+            return
+        if recreate:
+            dropTables(table)
+        table.createTable()
+        print(f"[INFO] created table {table.TABLE}.")
 
-def createDatabase():
-    """Creates database (all tables) if they don't exist yet."""
-    eventDB.createTable()
-    print(f"[INFO] created database {eventDB.TABLE}.")
-    discordDB.createTable()
-    print(f"[INFO] created database {discordDB.TABLE}.")
+def createDatabase(recreate=False):
+    """Creates database (all tables).
+
+    If flag `recreate` is set to `True`, it will delete all tables beforehand (only if they exist).
+    """
+    createTables(eventDB, discordDB, recreate=recreate)
 
 
 # Open database connections

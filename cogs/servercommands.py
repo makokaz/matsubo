@@ -67,6 +67,10 @@ class ServerCommands(commands.Cog):
         if hasattr(ctx.command, 'on_error'):
             return
 
+        # If second character of the message is not a letter, then it was not a command (e.g. '...' or '. ')
+        if ctx.message.content[1].isalpha():
+            return
+
         # Allows us to check for original exceptions raised and sent to CommandInvokeError.
         # If nothing is found. We keep the exception passed to on_command_error.
         error = getattr(error, 'original', error)

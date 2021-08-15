@@ -4,7 +4,6 @@ Discord Bot Cog that scraps the web for events, and then posts them on subscribe
 """
 
 import os
-from re import S
 import discord
 import asyncio
 import datetime
@@ -38,11 +37,9 @@ SCRAP_TIMES = '0 15 * * *'  # Every day at 15:00
 
 # Times when new events shall be posted to subscribed channels
 POST_TIMES = '0 20 * * 5-6'  # Every Saturday & Sunday at 20:00
-# POST_TIMES = '0-59/2 * * * *'  # for DEBUGGING
 
 # Time when it shall be reminded of events happening today/tomorrow/...
-REMIND_TIMES = '* 10 * * *'  # Every day at 10:00
-# REMIND_TIMES = '0-59 * * * *'  # for DEBUGGING
+REMIND_TIMES = '* 9-10 * * *'  # Every day at 10:00
 REMIND_BEFORE_DAYS = 0  # how many days before the reminder should be done
 
 # Define (logo, thumbnail, footer) for all sources that are scrapped
@@ -547,6 +544,19 @@ class EventListener(commands.Cog):
             await ctx.send(f"All subscribed topics of this channel: {topics_all}")
         else:
             await ctx.send("This channel has no subscribtions")
+    
+    @commands.command(name='recreatetable')
+    @commands.has_permissions(administrator=True)
+    @utils.log_call
+    async def cmd_recreateTable(self, ctx, *tables):
+        """Recreates given tables."""
+        tables = set({'discord':db.discordDB, 'event':db.eventDB}.get(table, None) for table in tables)
+        tables.discard(None)
+        if not tables:
+            await ctx.send(f"... either I don't know this table, or I don't know any table by that name :thinking:\nPlease specify it more.")
+            return
+        db.createTables(*tables, recreate=True)
+        await ctx.send(f"Recreated the following tables :thumbsup:\n{[str(table) for table in tables]}")
 
 
 def setup(bot):
