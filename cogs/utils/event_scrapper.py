@@ -26,6 +26,8 @@ def getTCDate(date):
     #     parse_date(date, default=datetime.datetime(1978, 1, 1, 0, 0), fuzzy_with_tokens=True)
     # except Exception:
     #     return '', '', 'Unknown'
+
+    # Split date into two parts: start_date and end_date
     date = date.split(" ~ ")
 
     # Hotfix
@@ -35,31 +37,48 @@ def getTCDate(date):
         except Exception:
             date[0] = date[0] + ' ' + date[1].split()[1]
 
+    ###########################
+    # Get starting date
+    ###########################
     date_start, fuzzy = parse_date(date[0], default=datetime.datetime(datetime.datetime.now().year, 1, 1, 0, 0, tzinfo=pytz.timezone('Asia/Tokyo')), fuzzy_with_tokens=True)
     date_start = date_start.date()
+
+    # Process fuzzy keywords, if there exists any
     fuzzy = [a.strip() for a in fuzzy]
-    date_end = date_start
     if fuzzy[0]:
         if fuzzy[0].strip() == 'Early':
             pass
         if fuzzy[0].strip() == 'Mid':
-            date_start = parse_date(f"{date_start.year}-{date_start.month}-{'15'}").date()
+            date_start = parse_date(f"{date_start.year}-{date_start.month}-{'10'}").date()
         if fuzzy[0].strip() == 'End' or fuzzy[0].strip() == 'Late':
-            date_start = parse_date(f"{date_start.year}-{date_start.month}-{'20'}").date()
-    if len(date) > 1:
+            date_start = parse_date(f"{date_start.year}-{date_start.month}-{'22'}").date()
+    
+    ###########################
+    # Get end date
+    ###########################
+    if len(date) > 1:  # Only if end date has been provided
         date_end, fuzzy = parse_date(date[1], default=datetime.datetime(datetime.datetime.now().year, 1, 1, 0, 0, tzinfo=pytz.timezone('Asia/Tokyo')), fuzzy_with_tokens=True)
         date_end = date_end.date()
         fuzzy = [a.strip() for a in fuzzy]
-        if fuzzy[0]:
-            if fuzzy[0].strip() == 'Early':
-                date_end = parse_date(f"{date_end.year}-{date_end.month}-{'10'}").date()
-            if fuzzy[0].strip() == 'Mid':
-                date_end = parse_date(f"{date_end.year}-{date_end.month}-{'20'}").date()
-            if fuzzy[0].strip() == 'End' or fuzzy[0].strip() == 'Late':
-                date_end = parse_date(f"{date_end.year}-{date_end.month}-{calendar.monthrange(date_end.year, date_end.month)[1]}").date()
+    else:  # end date has not been provided -> set expectations from start_date
+        date_end = date_start
+    
+    # Process fuzzy keywords, if there exists any
+    if fuzzy[0]:
+        if fuzzy[0].strip() == 'Early':
+            date_end = parse_date(f"{date_end.year}-{date_end.month}-{'10'}").date()
+        if fuzzy[0].strip() == 'Mid':
+            date_end = parse_date(f"{date_end.year}-{date_end.month}-{'21'}").date()
+        if fuzzy[0].strip() == 'End' or fuzzy[0].strip() == 'Late':
+            date_end = parse_date(f"{date_end.year}-{date_end.month}-{calendar.monthrange(date_end.year, date_end.month)[1]}").date()
+
+    ###########################
+    # Create proper fuzzy date string
+    ###########################
     if fuzzy[0] not in ['Early', 'Mid', 'End', 'Late']:
         fuzzy[0] = ''
     date_fuzzy = " ~ ".join(date) if fuzzy[0] else ''
+
     return date_start, date_end, date_fuzzy
     
 
