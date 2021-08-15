@@ -17,7 +17,7 @@ bot = commands.Bot(command_prefix='.')
 async def on_ready():
     """Gets called when bot is ready. Change presence and other setup of the bot."""
     await bot.change_presence(status=discord.Status.idle, activity=discord.Activity(name='Internet', type=discord.ActivityType.listening))
-    print(f'[{getJSTtime()}] Hello peeps! Matsubo is online ⚡')
+    print(f"[{getJSTtime()}] Hello peeps! {os.getenv('BOT_NAME','Matsubo')} is online ⚡")
 
 @bot.command()
 async def load(ctx, extension : str):

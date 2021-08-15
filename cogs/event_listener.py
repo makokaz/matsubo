@@ -1,21 +1,50 @@
 """Event Listener Cog
 
-Discord Bot Cog that scraps the web for events, and then posts them on defined channels.
+Discord Bot Cog that scraps the web for events, and then posts them on subscribed channels.
 """
 
 import os
 import discord
+import asyncio
+import datetime
+import pytz
+
 from discord.ext import commands, tasks
 from itertools import cycle
-import datetime, pytz
-import asyncio
-from cogs.utils import database as db
-from cogs.utils.event import Event
-from cogs.utils.event_scrapper import getEvents
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 
-SLEEP_STATUS = [f"Counting 🐑... {i} {'💤' if i%2 else ''}" for i in range(1, 10)]
-POST_TIMES = [datetime.time(hour=10, minute=0, second=0, tzinfo=pytz.timezone('Asia/Tokyo')), 
-              datetime.time(hour=20, minute=0, second=0, tzinfo=pytz.timezone('Asia/Tokyo'))]
+from .utils import utils
+from .utils import database as db
+from .utils.event import Event
+from .utils.event_scrapper import getEvents
+
+
+#########################
+# Global variables
+#########################
+# Note: The time variables below are in UNIX CRON format:
+#           *    *        *         *       *
+#          min  hour  dayOfMonth  month  weekday
+#       For example: "Every 2nd hour at minute 0 on Monday to Thursday every month"
+#                    -> 0 0-23/2 * * 0-3
+
+# Local timezone
+LOCAL_TZ = pytz.timezone('Asia/Tokyo')
+
+# Times when the web-scrapper should run
+SCRAP_TIMES = '0 15 * * *'  # Every day at 15:00
+
+# Times when new events shall be posted to subscribed channels
+POST_TIMES = '0 20 * * 5-6'  # Every Saturday & Sunday at 20:00
+# POST_TIMES = '0-59/2 * * * *'  # for DEBUGGING
+
+# Time when it shall be reminded of events happening today/tomorrow/...
+# REMIND_TIMES = '* 10 * * *'  # Every day at 10:00
+REMIND_TIMES = '0-59 * * * *'  # for DEBUGGING
+REMIND_BEFORE_DAYS = 0  # how many days before the reminder should be done
+
+# Define (logo, thumbnail, footer) for all sources that are scrapped
 SCRAP_SOURCES = {
     'Web:TokyoCheapo': {
         'footer': 'TOKYO CHEAPO',
@@ -29,135 +58,300 @@ SCRAP_SOURCES = {
     }
 }
 
+# Sleep status messages that will be iterated through
+SLEEP_STATUS = [f"Counting 🐑... {i} {'💤' if i%2 else ''}" for i in range(1, 10)]
+
+# How many past messages are checked per channel for event searching
+SEARCH_DEPTH = 10
+
+
+#########################
+# Classes & Functions
+#########################
 
 class EventListener(commands.Cog):
-    def __init__(self, bot):
+    """Discord Cog, Bot Addon.
+
+    This cog gives the bot the ability to scrap for events in the web and post them in subscribed channels.
+    """
+    def __init__(self, bot:commands.Bot):
         self.bot = bot
-        self.loop_scrapNotify.start()
+        self.scheduler = AsyncIOScheduler(timezone=LOCAL_TZ)
+        self.scheduler.start()
+
+        # Start scheduled tasks
+        self.scheduler.add_job(self.loop_scrap, CronTrigger.from_crontab(SCRAP_TIMES), id='scrap')
+        self.scheduler.add_job(self.loop_post, CronTrigger.from_crontab(POST_TIMES), id='post')
+        self.scheduler.add_job(self.loop_remind, CronTrigger.from_crontab(REMIND_TIMES), id='remind')
+
+        # Print next run times of scheduled tasks
+        print('Next run time of scheduled tasks:')
+        print(f"  > {self.scheduler.get_job('scrap').func.__name__.upper()}:  {self.scheduler.get_job('scrap').next_run_time}")
+        print(f"  > {self.scheduler.get_job('post').func.__name__.upper()}:   {self.scheduler.get_job('post').next_run_time}")
+        print(f"  > {self.scheduler.get_job('remind').func.__name__.upper()}: {self.scheduler.get_job('remind').next_run_time}")
+
+        # Start other loops
         self.countingSheeps.start()
+
 
     @tasks.loop(seconds=10)
     async def countingSheeps(self):
         """Counts sheeps. Very handy, because it shows the bot is still running."""
-        status_cycle = cycle(SLEEP_STATUS)
-        await self.bot.change_presence(status=discord.Status.idle, activity=discord.Game(next(status_cycle)))
+        await self.bot.change_presence(status=discord.Status.idle, activity=discord.Game(next(self.status_cycle)))
     def cog_unload(self):
         self.countingSheeps.cancel()
     @countingSheeps.before_loop
     async def before_countingSheeps(self):
         await self.bot.wait_until_ready()
+        self.status_cycle = cycle(SLEEP_STATUS)
     @countingSheeps.after_loop
     async def on_countingSheeps_cancel(self):
         # if self.countingSheeps.is_being_cancelled():
         #     await self.bot.change_presence(status=discord.Status.idle, activity=discord.Activity(name='Internet', type=discord.ActivityType.listening))
         pass
 
-    @tasks.loop(hours=1)
-    async def loop_scrapNotify(self):
-        """[Background task] Scraps web at specified times and notifies all subscribed channels."""
-        currentTime = datetime.datetime.now(tz=pytz.timezone('Asia/Tokyo'))
-        dt = datetime.datetime.now(tz=pytz.timezone('Asia/Tokyo')).replace(hour=POST_TIMES[0].hour, minute=POST_TIMES[0].minute, second=POST_TIMES[0].second) + datetime.timedelta(days=1) - currentTime
-        for time in POST_TIMES:
-            postTime = datetime.datetime.now(tz=pytz.timezone('Asia/Tokyo')).replace(hour=time.hour, minute=time.minute, second=time.second)
-            if postTime > currentTime:
-                dt = postTime - currentTime
-                break
-        print(f"Next Web-scrapping in {dt.seconds}s")
-        await asyncio.sleep(dt.seconds)
-        self.countingSheeps.cancel()
-        await self.scrapEvents()
-        await self.notifyAllChannels()
-    @loop_scrapNotify.before_loop
-    async def before_loop_scrapNotify(self):
+    @utils.log_call
+    async def loop_scrap(self):
+        """[Background task] Scraps web at specified times for new events."""
         await self.bot.wait_until_ready()
-    
-
-    @commands.command()
-    @commands.has_permissions(administrator=True)
-    async def scrap(self, ctx):
-        """(ADMIN ONLY) Searches the web for new events, and posts updates to all subscibed channels."""
         self.countingSheeps.cancel()
-
-        await ctx.send(f"Scanning the web... this might take a while :coffee:")
-        await self.scrapEvents()
-        await self.notifyAllChannels()
-        await ctx.send(f"That's all I could find :innocent:")
-
-        await asyncio.sleep(2) #bugfix: wait before change_presence is called too fast!
+        await asyncio.sleep(1) #bugfix: wait before change_presence is called too fast!
+        await self.scrap()
+        await asyncio.sleep(1) #bugfix: wait before change_presence is called too fast!
         self.countingSheeps.start()
+        print(f"Next run time of LOOP_SCRAP():  {self.scheduler.get_job('scrap').next_run_time}")
 
-    async def scrapEvents(self):
+    @utils.log_call
+    async def loop_post(self):
+        """[Background task] Notifies all subscribed channels of new events."""
+        await self.bot.wait_until_ready()
+        self.countingSheeps.cancel()
+        await asyncio.sleep(1) #bugfix: wait before change_presence is called too fast!
+        await self.notify()
+        await asyncio.sleep(1) #bugfix: wait before change_presence is called too fast!
+        self.countingSheeps.start()
+        print(f"Next run time of LOOP_POST():  {self.scheduler.get_job('post').next_run_time}")
+    
+    @utils.log_call
+    async def loop_remind(self):
+        """[Background task] Reminds subscribed channels of when events are happening (today, tomorrow, ...).
+        
+        The global variable `REMIND_BEFORE_DAYS`` defines how many days prior to the start of the event the reminder will be issued.
+        """
+        await self.bot.wait_until_ready()
+        self.countingSheeps.cancel()
+        await asyncio.sleep(1) #bugfix: wait before change_presence is called too fast!
+        await self.remind()
+        await asyncio.sleep(1) #bugfix: wait before change_presence is called too fast!
+        self.countingSheeps.start()
+        print(f"Next run time of LOOP_REMIND():  {self.scheduler.get_job('remind').next_run_time}")
+    
+    async def scrap(self):
         """Searches the web for new events, and puts them into the database"""
-        print("Scrapping events...")
         await self.bot.change_presence(status=discord.Status.online, activity=discord.Game('Scrapping the web...'))
+
+        # Scrap events
+        print("Scrapping events...")
         events = getEvents()
         # print("Found the following events:")
         # for event in events:
         #    print(event)
+
+        # Insert events into database
         db.eventDB.insertEvents(events)
+
         print("Finished scrapping events!")
         pass
+    
+    async def notify(self, channels:list[commands.TextChannelConverter]=None):
+        """Notifies given channels of new events.
 
-    async def notifyAllChannels(self):
-        """Notify all subscribed channels of new events"""
-        chvs = db.discordDB.getAllChannelVisibility()
+        If no list of channels are given, it defaults to notifying every channel.
+
+        Parameters
+        ------------
+        channels: Optional[:class:`list`[:class:`commands.TextChannelConverter`]]
+            The channels to be notified, ``None`` if all channels shall be notified.
+        """
+        await self.bot.change_presence(status=discord.Status.online, activity=discord.Game('Notifying channels...'))
+
+        # Extract subscribed topics per channel from database
+        if channels:
+            chvs = [[channel.id, db.discordDB.getChannelVisibility(channel.id)] for channel in channels]
+            print(f'### Notifying channels {channels} of new events')
+        else:
+            chvs = db.discordDB.getAllChannelVisibility()
+            print('### Notifying all channels of new events')
+
+        # Loop over every channel
         for chv in chvs:
-            channel_id = chv[0]
+            channel = self.bot.get_channel(chv[0])
             topics = chv[1]
-            #print(f"Channel-ID: {channel_id};  Topics: {topics}")
+            #print(f"Channel-ID: {channel.id};  Topics: {topics}")
+
+            # Obtain all events in database from today until 1 week of topics this channel has subscribed to
             events = db.eventDB.getEvents(
                 visibility=topics,
-                from_date=datetime.datetime.now(tz=pytz.timezone('Asia/Tokyo')).date(),
-                until_date=datetime.datetime.now(tz=pytz.timezone('Asia/Tokyo')).date()+datetime.timedelta(weeks=1)
+                from_date=datetime.datetime.now(tz=LOCAL_TZ).date(),
+                until_date=datetime.datetime.now(tz=LOCAL_TZ).date()+datetime.timedelta(weeks=1)
             )
-            channel = self.bot.get_channel(channel_id)
-            await self.notifyChannel(channel, events)
-        print("Notified all channels!")
 
-    async def notifyChannel(self, channel : commands.TextChannelConverter, events : list[Event]):
-        """Notify channel of new events"""
-        print(f"Notifying channel #{channel}:{channel.id} of new events")
-        messages, idx = await self.findEventMessages(channel, events)
-        for i, event in enumerate(events):
-            if i in idx:  # Update the message with new event details
-                message = messages[idx.index(i)]
-                # Only edit if embed has changed
-                if self.embedsAreEqual(message.embeds[0], self.getEmbed(event)):
-                    continue
-                # Edit message
-                await message.edit(embed=self.getEmbed(event))
-                print(f'Edited event in message: {event.name} [{event.id}] -> Message-ID:{message.id}')
+            ################
+            # Notify channel
+            ################
+            print(f"-> Notifying channel #{channel}:{channel.id} of new events")
+
+            # Find messages of events that have already been posted to discord
+            messages, idx = await self.findEventMessages(channel, events)
+
+            # Loop over every event
+            for i, event in enumerate(events):
+                if i in idx:  # If event has already been posted before, update it with new details (if any)
+                    message = messages[idx.index(i)]
+                    # Only edit if embed has changed
+                    if self.embedsAreEqual(message.embeds[0], self.getEmbed(event)):
+                        continue
+                    # Edit message
+                    await message.edit(embed=self.getEmbed(event))
+                    print(f'Edited event in message: {event.name} [{event.id}] -> Message-ID:{message.id}')
+                    pass
+                else:  # Post NEW event
+                    if event.status.lower() in ['cancelled','canceled']:
+                        continue # Only post if event has not been cancelled in the first place
+                    await channel.send(content=f'***{event.name} [{event.id}]***', embed=self.getEmbed(event))
+                    print(f'Posted event to channel: {event.name} [{event.id}] -> #{channel}:{channel.id}')
+                await asyncio.sleep(2) #bugfix: sleep for some time before new event is posted
+        
+        print("### Notified all channels!")
+
+    async def remind(self, channels:list[commands.TextChannelConverter]=None):
+        """Reminds given channels of events that are happening soon.
+        
+        If no list of channels are given, it defaults to reminding every channel.
+
+        The global variable `REMIND_BEFORE_DAYS`` defines how many days prior to the start of the event the reminder will be issued.
+
+        Parameters
+        ------------
+        channels: Optional[:class:`list`[:class:`commands.TextChannelConverter`]]
+            The channels to be notified, ``None`` if all channels shall be notified.
+        """
+        await self.bot.change_presence(status=discord.Status.online, activity=discord.Game('Checking for reminders...'))
+
+        # Extract subscribed topics per channel from database
+        if channels:
+            chvs = [[channel.id, db.discordDB.getChannelVisibility(channel.id)] for channel in channels]
+            print(f'### Reminding channels {channels} of current events')
+        else:
+            chvs = db.discordDB.getAllChannelVisibility()
+            print('### Reminding all channels of current events')
+        
+        # Loop over every channel
+        for chv in chvs:
+            channel = self.bot.get_channel(chv[0])
+            topics = chv[1]
+            #print(f"Channel-ID: {channel.id};  Topics: {topics}")
+
+            # Obtain all currently happening events in database of topics this channel has subscribed to
+            events = db.eventDB.getEvents(
+                visibility=topics,
+                from_date=(datetime.datetime.now(tz=LOCAL_TZ)+datetime.timedelta(days=REMIND_BEFORE_DAYS)).date(),
+                until_date=(datetime.datetime.now(tz=LOCAL_TZ)+datetime.timedelta(days=REMIND_BEFORE_DAYS)).date()
+            )
+
+            if not events:
+                print(f"-> Channel #{channel}:{channel.id} has no currently happening events")
+                return
+
+            ################
+            # Remind channel
+            ################
+            print(f"-> Reminding channel #{channel}:{channel.id} of currently happening events")
+            for event in events:
+                print(event)
+
+            # Find reminder that has already been posted to Discord
+            message = await self.findReminderMessage(channel, events)
+            #TODO find all event embeds for the reminder, so the embed-URLs can be set as links in the reminder message
+
+            if message:
+                #TODO Edit reminder, in case they changed -> Or delete it, and send a new reminder?
                 pass
-            else:  # Post new event
-                if event.status.lower() in ['cancelled','canceled']:
-                    continue
-                await channel.send(content=f'***{event.name} [{event.id}]***', embed=self.getEmbed(event))
-                print(f'Posted event to channel: {event.name} [{event.id}] -> #{channel}:{channel.id}')
-            await asyncio.sleep(2)
+            else:
+                #TODO Construct reminder
+                pass
+
+        print('### Reminded all channels!')
+
+    async def findReminderMessage(self, channel: commands.TextChannelConverter, events: list[Event]) -> discord.Message:
+        """Finds latest reminder message of currently happening events.
+
+        Parameters
+        ------------
+        channel: :class:`discord.TextChannel`
+            The channel where to search for the reminder.
+        events: :class:`list`[:class:`Event`]
+            The events to check if they have all been mentioned in the reminder.
+        """
+        #TODO
+        pass
+
+    def getReminder(self, events:list[Event]) -> str:
+        """Creates reminder message and returns as string.
+
+        Parameters
+        ------------
+        events: :class:`list`[:class:`Event`]
+            The list of currently happening events.
+        """
+        #TODO
         pass
 
     async def findEventMessages(self, channel: commands.TextChannelConverter, events: list[Event]) -> tuple[list[discord.Message],list[int]]:
-        """Finds messages in given channel of given events. Returns messages and the indices of the events in the provided list."""
+        """Finds events that have already been posted to discord.
+
+        Returns the messages and the indices of the events in the provided list.
+
+        Parameters
+        ------------
+        channel: :class:`discord.TextChannel`
+            The channel where to search for already posted events.
+        events: :class:`list`[:class:`Event`]
+            The events to check for if they have already been posted.
+        """
+        # Search results will be appended to these lists
         messages = []
         idx = []
-        async for message in channel.history(limit=10):
+
+        # Loop over every message
+        async for message in channel.history(limit=SEARCH_DEPTH):
             if not len(message.embeds):
                 continue
             if message.author != self.bot.user:
                 continue
-            embed = message.embeds[0]
+
             # Find index in list events that matches the discord message event
+            embed = message.embeds[0]
             datefield = next((field for field in embed.fields if field.value.startswith(':date:')))
             i = next((i for i,event in enumerate(events) if event.id==embed.footer.text.split()[-1] and f':date: ***{event.getDateRange()}***'==datefield.value), None)
+            
             if i is None:
                 continue
+
             # Append message and index to return-lists
             messages.append(message)
             idx.append(i)
         return messages, idx
 
+
     def getEmbed(self, event: Event) -> discord.Embed:
-        """Returns discord.Embed object of given event"""
+        """Returns discord.Embed object of given event
+
+        Parameters
+        ------------
+        event: :class:`Event`
+            The event.
+        """
         embed = discord.Embed(
             title=event.name,
             colour=discord.Colour(0xd69d37),
@@ -210,6 +404,17 @@ class EventListener(commands.Cog):
         return embed
 
     def embedsAreEqual(self, embed1:discord.Embed, embed2:discord.Embed) -> bool:
+        """Checks if two :class:`discord.Embed` representing two :class:`Event` are equal.
+
+        Equality happens when their metadata (all fields in the embed) are equal.
+
+        Parameters
+        ------------
+        embed1: :class:`discord.Embed`
+            The embed of the first event.
+        embed2: :class:`discord.Embed`
+            The embed of the second event.
+        """
         if embed1.title != embed2.title:
             return False
         if embed1.url != embed2.url:
@@ -236,19 +441,33 @@ class EventListener(commands.Cog):
         if not fieldsAreEqual:
             return False
         return True
-
-    @commands.command()
+    
+    @commands.command(name='scrap')
     @commands.has_permissions(administrator=True)
-    async def subscribe(self, ctx, *topics):
+    async def cmd_scrap(self, ctx):
+        """Searches the web for new events, and posts updates to all subscibed channels."""
+        self.countingSheeps.cancel()
+
+        await ctx.send(f"Scanning the web... this might take a while :coffee:")
+        await self.scrap()
+        await self.notify()
+        await ctx.send(f"That's all I could find :innocent:")
+
+        await asyncio.sleep(2) #bugfix: wait before change_presence is called too fast!
+        self.countingSheeps.start()
+
+    @commands.command(name='subscribe')
+    @commands.has_permissions(administrator=True)
+    async def cmd_subscribe(self, ctx, *topics):
         """Subscribes channel the message was sent in. Will post events to this channel."""
         topics = set(topics)
         topics_all = topics | db.discordDB.getChannelVisibility(ctx.channel.id)
         db.discordDB.updateChannel(ctx.channel.id, list(topics_all))
         await ctx.send(f"Subscribed the following new topics: {topics}\nAll subscribed topics of this channel: {topics_all}")
 
-    @commands.command()
+    @commands.command(name='unsubscribe')
     @commands.has_permissions(administrator=True)
-    async def unsubscribe(self, ctx, *topics):
+    async def cmd_unsubscribe(self, ctx, *topics):
         """Unsubscribes topics from the channel the message was sent in. If no topics are given, the entire channel will be unsubscribed."""
         if len(topics):
             topics = set(topics)
@@ -262,9 +481,9 @@ class EventListener(commands.Cog):
             db.discordDB.removeChannel(ctx.channel.id)
             await ctx.send("Unsubscribed channel from all topics")
 
-    @commands.command()
+    @commands.command(name='getsubscribedtopics')
     @commands.has_permissions(administrator=True)
-    async def getSubscribedTopics(self, ctx):
+    async def cmd_getSubscribedTopics(self, ctx):
         """Returns topics this channel is subscribed to."""
         topics_all = db.discordDB.getChannelVisibility(ctx.channel.id)
         if topics_all:
@@ -278,7 +497,7 @@ def setup(bot):
 
 
 # TODO:
-# - Post 'events of next week' on Saturday
 # - One day before the event, remind that the event is starting
 # - Implement command that returns which events are happening {currently; in given period; this month;  in this area; ...}
 # - Extend sources of event scrapping
+# - Add list of topics one can subscribe

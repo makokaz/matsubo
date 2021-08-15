@@ -57,8 +57,6 @@ def getTCDate(date):
                 date_end = parse_date(f"{date_end.year}-{date_end.month}-{'20'}").date()
             if fuzzy[0].strip() == 'End' or fuzzy[0].strip() == 'Late':
                 date_end = parse_date(f"{date_end.year}-{date_end.month}-{calendar.monthrange(date_end.year, date_end.month)[1]}").date()
-    date_start = date_start
-    date_end = date_end
     if fuzzy[0] not in ['Early', 'Mid', 'End', 'Late']:
         fuzzy[0] = ''
     date_fuzzy = " ~ ".join(date) if fuzzy[0] else ''
