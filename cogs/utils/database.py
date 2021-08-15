@@ -13,8 +13,8 @@ from . import utils
 
 # Setup database
 if os.getenv('DATABASE_URL'):  # On Heroku, all fields are concatenated into one string
-    DB_USER, DB_PW, DB_HOST, DB_PORT, DB_NAME = os.getenv('DATABASE_URL').translate(
-        str.maketrans({'postgres://': '', ':': ' ', '@': ' ', '/': ' '})).split()
+    DB_USER, DB_PW, DB_HOST, DB_PORT, DB_NAME = os.getenv('DATABASE_URL').replace(
+        'postgres://','').translate(str.maketrans({':': ' ', '@': ' ', '/': ' '})).split()
 else:  # Default
     DB_HOST = os.getenv("DB_HOST")
     DB_PORT = os.getenv("DB_PORT",5432)
