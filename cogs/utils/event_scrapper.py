@@ -40,6 +40,7 @@ def getTCDate(date):
     ###########################
     # Get starting date
     ###########################
+    # BUG: For dates like LATE JAN ~ LATE FEB 2022, the timerange being interpreted is 2021-2022. But it should be both in the year 2022!
     date_start, fuzzy = parse_date(date[0], default=datetime.datetime(datetime.datetime.now().year, 1, 1, 0, 0, tzinfo=pytz.timezone('Asia/Tokyo')), fuzzy_with_tokens=True)
     date_start = date_start.date()
 

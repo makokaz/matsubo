@@ -12,11 +12,16 @@ from .event import Event
 from . import utils
 
 # Setup database
-DB_HOST = os.getenv("DB_HOST")
-DB_PW = os.getenv("DB_PW")
-DB_USER = os.getenv("DB_USER")
-DB_NAME = os.getenv("DB_NAME")
-print(f"DATABASE-INFO: HOST={DB_HOST},USER={DB_HOST},PW={'*'*len(DB_PW)},NAME={DB_NAME}")
+if os.getenv('DATABASE_URL'):  # On Heroku, all fields are concatenated into one string
+    DB_USER, DB_PW, DB_HOST, DB_PORT, DB_NAME = os.getenv('DATABASE_URL').translate(
+        str.maketrans({'postgres://': '', ':': ' ', '@': ' ', '/': ' '})).split()
+else:  # Default
+    DB_HOST = os.getenv("DB_HOST")
+    DB_PORT = os.getenv("DB_PORT",5432)
+    DB_USER = os.getenv("DB_USER")
+    DB_PW = os.getenv("DB_PW")
+    DB_NAME = os.getenv("DB_NAME")
+print(f"DATABASE-INFO: HOST={DB_HOST},PORT={DB_PORT},USER={DB_USER},PW={'*'*len(DB_PW)},NAME={DB_NAME}")
 
 
 class DBConnector():
@@ -27,13 +32,14 @@ class DBConnector():
     with DBConnector() as conn:
         # do something
     """
-    def __init__(self,host=DB_HOST,user=DB_USER,password=DB_PW,database=DB_NAME):
+    def __init__(self,host=DB_HOST,port=DB_PORT,user=DB_USER,password=DB_PW,database=DB_NAME):
         self.host = host
+        self.port = port
         self.user = user
         self.password = password
         self.database = database
     def __enter__(self):
-        self.conn = psycopg2.connect(host=self.host,user=self.user,password=self.password,database=self.database)
+        self.conn = psycopg2.connect(host=self.host,port=self.port,user=self.user,password=self.password,database=self.database)
         self.cur = self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         return self.cur
     def __exit__(self, type, value, traceback):
@@ -46,8 +52,8 @@ class DBEvent():
     Class helper for saving events into an event-database.
     """
     TABLE = "events"
-    def __init__(self,host=DB_HOST,user=DB_USER,password=DB_PW,database=DB_NAME):
-        self.connector = DBConnector(host=host,user=user,password=password,database=database)
+    def __init__(self,host=DB_HOST,port=DB_PORT,user=DB_USER,password=DB_PW,database=DB_NAME):
+        self.connector = DBConnector(host=host,port=port,user=user,password=password,database=database)
     def __str__(self):
         return self.TABLE
     def createTable(self):
@@ -139,8 +145,8 @@ class DBDiscord():
     - ...
     """
     TABLE = "discord"
-    def __init__(self,host=DB_HOST,user=DB_USER,password=DB_PW,database=DB_NAME):
-        self.connector = DBConnector(host=host,user=user,password=password,database=database)
+    def __init__(self,host=DB_HOST,port=DB_PORT,user=DB_USER,password=DB_PW,database=DB_NAME):
+        self.connector = DBConnector(host=host,port=port,user=user,password=password,database=database)
     def __str__(self):
         return self.TABLE
     def createTable(self):
@@ -223,8 +229,8 @@ def createDatabase(recreate=False):
 
 
 # Open database connections
-eventDB = DBEvent(host=DB_HOST, user=DB_USER, password=DB_PW, database=DB_NAME)
-discordDB = DBDiscord(host=DB_HOST, user=DB_USER, password=DB_PW, database=DB_NAME)
+eventDB = DBEvent(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PW, database=DB_NAME)
+discordDB = DBDiscord(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PW, database=DB_NAME)
 
 
 if __name__ == '__main__':
@@ -233,8 +239,11 @@ if __name__ == '__main__':
     # discordDB.updateChannel('ch1',['kanto'])
     # print(discordDB.getChannelVisibility('ch1'))
     # discordDB.removeChannel('ch1')
-    discordDB.printTable()
-    eventDB.printTable()
+    try:
+        discordDB.printTable()
+        eventDB.printTable()
+    except Exception:
+        pass
     # print("Special query:")
     #print(discordDB.executeQuery(f"SELECT * FROM {discordDB.TABLE};"))
     # discordDB.executeQuery(f"INSERT INTO {discordDB.TABLE} (channel_id, visibility) VALUES ('ch7', ARRAY['kanto','kansai']);")
