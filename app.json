@@ -1,0 +1,30 @@
+{
+    "name": "Matsubo",
+    "description": "Discord bot for international students in Japan.",
+    "repository": "https://github.com/makokaz/matsubo",
+    "keywords": [
+        "discord",
+        "bot"
+    ],
+    "success_url": "/",
+    "env": {
+        "BOT_TOKEN": {
+            "description": "Discord Bot Access Token"
+        },
+        "BOT_Name": "Matsubo",
+        "BOT_URL": "https://github.com/makokaz/matsubo",
+        "BOT_ICON_URL": {
+            "description": "The Icon-URL of the bot-image you use",
+            "value": "https://discord.com/assets/f9bb9c4af2b9c32a2c5ee0014661546d.png"
+        }
+    },
+    "addons": [
+        {
+            "plan": "heroku-postgresql:hobby-dev",
+            "as": "DATABASE"
+        }
+    ],
+    "scripts": {
+        "postdeploy": "python -m cogs.utils.database create"
+    }
+}
