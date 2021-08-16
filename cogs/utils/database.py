@@ -4,6 +4,7 @@ Simple interface to save and load event data of a postgres database.
 """
 
 import os
+import sys
 import psycopg2
 import psycopg2.extras
 import datetime
@@ -234,11 +235,13 @@ discordDB = DBDiscord(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PW, 
 
 
 if __name__ == '__main__':
-    # createDatabase()
-    #discordDB.createTable()
-    # discordDB.updateChannel('ch1',['kanto'])
-    # print(discordDB.getChannelVisibility('ch1'))
-    # discordDB.removeChannel('ch1')
+    args = sys.argv[1:]
+    for arg in args:
+        if arg == 'create':
+            createDatabase(recreate=True)
+        else:
+            print(f"argument '{arg}' unknown. SKIP")
+
     try:
         discordDB.printTable()
         eventDB.printTable()
