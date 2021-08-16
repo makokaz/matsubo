@@ -29,15 +29,7 @@ To host Matsubo on their server, follow these steps:
 2. Deploy by clicking on this button:  
 [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)  
 During Deployment, you will be asked to fill in a few [API Keys](#api-keys).
-3. Since Matsubo uses internally a PostgreSQL database to gather all event information, you must add the [Heroku Postgres add-on](https://elements.heroku.com/addons/heroku-postgresql) to your newly created Matsubo application.
-4. The postgres-database must now be initialized.  
-    At the main page of your Matsubo application, click on `More -> Run Console` and type `python` in the blank field, then Enter.
-    Copy the following lines into the console that appeared:
-    ```python
-    from cogs.utils.database import *
-    createDatabase(recreate=True)
-    ```
-5. At the main page of your Matsubo application, next to the Dyno formation, click on `Configure Dynos` and turn it on to run Matsubo!
+3. At the main page of your Matsubo application, next to the Dyno formation, click on `Configure Dynos` and turn it on to run Matsubo!
 
 That's all! 🎉
 
@@ -65,12 +57,10 @@ Open it and fill in the [API Keys](#api-keys).
 4. Activate your pipenv shell and initialize the postgres database. To do this, type
     ```bash
     pipenv shell
-    pipenv run python
     ```
     then
-    ```python
-    from cogs.utils.database import *
-    createDatabase(recreate=True)
+    ```bash
+    python -m cogs.utils.database create
     ```
 5. To run Matsubo, simply type:
     ```bash
