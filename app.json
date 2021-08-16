@@ -11,8 +11,14 @@
         "BOT_TOKEN": {
             "description": "Discord Bot Access Token"
         },
-        "BOT_Name": "Matsubo",
-        "BOT_URL": "https://github.com/makokaz/matsubo",
+        "BOT_Name": {
+            "description": "Name of the Discord bot",
+            "value": "Matsubo"
+        },
+        "BOT_URL": {
+            "description": "The URL where you will be directed to when you click on the Bot-name in Discord",
+            "value": "https://github.com/makokaz/matsubo"
+        },
         "BOT_ICON_URL": {
             "description": "The Icon-URL of the bot-image you use",
             "value": "https://discord.com/assets/f9bb9c4af2b9c32a2c5ee0014661546d.png"
