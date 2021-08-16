@@ -1,7 +1,7 @@
-# Matsubo :flags:
+# Matsubo 🎏
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/makokaz/matsubo/main/LICENSE)
 
-Matsubo parses Japanese 祭り :flags: (Japanese for "festival") and other events from different sources and uses Discord to summarize all event details.
+Matsubo parses Japanese 祭り 🎏 (Japanese for "festival") and other events from different sources and uses Discord to summarize all event details.
 
 Events are filtered by region and users are reminded at the start of an event. Currently, events are parsed from the following sources:
 
@@ -11,11 +11,10 @@ Events are filtered by region and users are reminded at the start of an event. C
 | [<img src="https://cdn.cheapoguides.com/wp-content/themes/cheapo_theme/assets/img/logos/japancheapo/logo.png" height="30">](https://japancheapo.com) | japancheapo.com |
 
 **!! Disclaimer** 
-```
-These websites do not belong to this repository, nor does this repository have a relation with any of these websites.
-Matsubo will always direct you to the corresponding source where the event was found, not a direct link to the event website itself. This is to honor the great people working on the mentioned websites.
-Matsubo only serves the purpose of summarizing events from different sources, and reminding people when an event has started.
-```
+> These websites do not belong to this repository, nor does this repository have a relation with any of these websites.
+> Matsubo will always direct you to the corresponding source where the event was found, not a direct link to the event website itself.
+> This is to honor the great people working on the mentioned websites.  
+> Matsubo only serves the purpose of summarizing events from different sources, and reminding people when an event has started.
 
 # How to use
 > Before you follow the steps below, make sure that you have a `Discord Bot Token` by following the guide [how to get a discord bot token](#how-to-get-a-discord-bot-token).
@@ -31,15 +30,16 @@ To host Matsubo on their server, follow these steps:
 [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)  
 During Deployment, you will be asked to fill in a few [API Keys](#api-keys).
 3. Since Matsubo uses internally a PostgreSQL database to gather all event information, you must add the [Heroku Postgres add-on](https://elements.heroku.com/addons/heroku-postgresql) to your newly created Matsubo application.
-4. The postgres-database must now be initialized. At the main page of your Matsubo application, click on `More -> Run Console` and type `python` in the blank field, then Enter.
-Copy the following lines into the console that appeared:
+4. The postgres-database must now be initialized.  
+    At the main page of your Matsubo application, click on `More -> Run Console` and type `python` in the blank field, then Enter.
+    Copy the following lines into the console that appeared:
     ```python
     from cogs.utils.database import *
     createDatabase(recreate=True)
     ```
 5. At the main page of your Matsubo application, next to the Dyno formation, click on `Configure Dynos` and turn it on to run Matsubo!
 
-That's all! :data:
+That's all! 🎉
 
 
 ## 2. Local PC (or other services)
@@ -77,7 +77,7 @@ Open it and fill in the [API Keys](#api-keys).
     pipenv run python bot.py
     ```
 
-That's all! :data:
+That's all! 🎉
 
 
 ## API keys
@@ -179,4 +179,5 @@ With a few modifications it can serve anyone anywhere. :blush:
 
 # How to support me
 If you like my work and want to support me, simply buy me a coffee :coffee: :relieved:
+
 <a href="https://www.buymeacoffee.com/makokaz" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: auto !important;width: auto !important;"></a>
