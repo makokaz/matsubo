@@ -63,6 +63,10 @@ SLEEP_STATUS = [f"Counting 🐑... {i} {'💤' if i%2 else ''}" for i in range(1
 # How many past messages are checked per channel for event searching
 SEARCH_DEPTH = 100
 
+# TODO Make this variable disappear, and instead make it depend on utils/event_scrapper.py
+# All possible topics to be subscribable
+TOPICS = ['Chubu', 'Chugoku', 'Hokkaido', 'Kansai', 'Kanto', 'Kyushu', 'Okinawa', 'Shikoku', 'Tohoku']
+
 
 #########################
 # Classes & Functions
@@ -520,10 +524,14 @@ class EventListener(commands.Cog):
         """Subscribes channel the message was sent in. Will post events to this channel."""
         if not channel:
             channel = ctx.channel
-        topics = set(topics)
-        topics_all = topics | db.discordDB.getChannelVisibility(channel.id)
-        db.discordDB.updateChannel(channel.id, list(topics_all))
-        await ctx.send(f"Subscribed the following new topics for channel <#{channel.id}>: {topics}\nAll subscribed topics of this channel: {topics_all}")
+        topics = set(topic.capitalize() if topic.capitalize() in TOPICS else None for topic in topics)
+        topics.discard(None)
+        if len(topics):
+            topics_all = topics | db.discordDB.getChannelVisibility(channel.id)
+            db.discordDB.updateChannel(channel.id, list(topics_all))
+            await ctx.send(f"Subscribed the following new topics for channel <#{channel.id}>: {topics}\nAll subscribed topics of this channel: {topics_all}")
+        else:
+            await ctx.send(f"Either I don't know that topic, or you already subscribed to that topic!")
 
     @commands.command(name='unsubscribe')
     @commands.has_permissions(administrator=True)
@@ -533,7 +541,11 @@ class EventListener(commands.Cog):
         if not channel:
             channel = ctx.channel
         if len(topics):
-            topics = set(topics)
+            topics = set(topic.capitalize() if topic.capitalize() in TOPICS else None for topic in topics)
+            topics.discard(None)
+            if not topics:
+                await ctx.send(f"I don't know of that topic... Did you misspell it?")
+                return
             topics_new = db.discordDB.getChannelVisibility(channel.id) - topics
         else:
             topics_new = None
