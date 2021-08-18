@@ -8,6 +8,7 @@ import discord
 import asyncio
 import datetime
 import pytz
+import typing
 
 from discord.ext import commands, tasks
 from itertools import cycle
@@ -515,40 +516,52 @@ class EventListener(commands.Cog):
     @commands.command(name='subscribe')
     @commands.has_permissions(administrator=True)
     @utils.log_call
-    async def cmd_subscribe(self, ctx, *topics):
+    async def cmd_subscribe(self, ctx, channel:typing.Optional[commands.TextChannelConverter]=None, *topics):
         """Subscribes channel the message was sent in. Will post events to this channel."""
+        if not channel:
+            channel = ctx.channel
         topics = set(topics)
-        topics_all = topics | db.discordDB.getChannelVisibility(ctx.channel.id)
-        db.discordDB.updateChannel(ctx.channel.id, list(topics_all))
-        await ctx.send(f"Subscribed the following new topics: {topics}\nAll subscribed topics of this channel: {topics_all}")
+        topics_all = topics | db.discordDB.getChannelVisibility(channel.id)
+        db.discordDB.updateChannel(channel.id, list(topics_all))
+        await ctx.send(f"Subscribed the following new topics for channel <#{channel.id}>: {topics}\nAll subscribed topics of this channel: {topics_all}")
 
     @commands.command(name='unsubscribe')
     @commands.has_permissions(administrator=True)
     @utils.log_call
-    async def cmd_unsubscribe(self, ctx, *topics):
+    async def cmd_unsubscribe(self, ctx, channel:typing.Optional[commands.TextChannelConverter]=None, *topics):
         """Unsubscribes topics from the channel the message was sent in. If no topics are given, the entire channel will be unsubscribed."""
+        if not channel:
+            channel = ctx.channel
         if len(topics):
             topics = set(topics)
-            topics_new = db.discordDB.getChannelVisibility(ctx.channel.id) - topics
+            topics_new = db.discordDB.getChannelVisibility(channel.id) - topics
         else:
             topics_new = None
         if topics_new:
-            db.discordDB.updateChannel(ctx.channel.id, list(topics_new))
-            await ctx.send(f"Unsubscribed the following topics: {topics}\nAll subscribed topics of this channel: {topics_new}")
+            db.discordDB.updateChannel(channel.id, list(topics_new))
+            await ctx.send(f"Unsubscribed the following topics from channel <#{channel.id}>: {topics}\nAll subscribed topics of this channel: {topics_new}")
         else:
-            db.discordDB.removeChannel(ctx.channel.id)
-            await ctx.send("Unsubscribed channel from all topics")
+            db.discordDB.removeChannel(channel.id)
+            await ctx.send(f"Unsubscribed channel <#{channel.id}> from all topics")
 
     @commands.command(name='getsubscribedtopics')
     @commands.has_permissions(administrator=True)
     @utils.log_call
-    async def cmd_getSubscribedTopics(self, ctx):
+    async def cmd_getSubscribedTopics(self, ctx, channel:commands.TextChannelConverter=None):
         """Returns topics this channel is subscribed to."""
-        topics_all = db.discordDB.getChannelVisibility(ctx.channel.id)
+        if not channel:
+            channel = ctx.channel
+        topics_all = db.discordDB.getChannelVisibility(channel.id)
         if topics_all:
-            await ctx.send(f"All subscribed topics of this channel: {topics_all}")
+            await ctx.send(f"All subscribed topics of <#{channel.id}>: {topics_all}")
         else:
-            await ctx.send("This channel has no subscribtions")
+            await ctx.send(f"<#{channel.id}> has currently no subscribtions")
+        
+    @cmd_getSubscribedTopics.error
+    async def error_getSubscribedTopics(self, ctx, error):
+        """Error handler. Is invoked when channel given to cmd_getSubscribedTopics() is unknown."""
+        if isinstance(error, commands.BadArgument):
+            await ctx.send("I don't know of that channel... Did you mistype it?")
     
     @commands.command(name='recreatetable')
     @commands.has_permissions(administrator=True)

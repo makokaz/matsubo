@@ -11,6 +11,7 @@ psycopg2 = "*"
 datetime = "*"
 python-dateutil = "*"
 apscheduler = "*"
+typing = "*"
 
 [dev-packages]
 autopep8 = "*"
