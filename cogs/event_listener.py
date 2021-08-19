@@ -557,7 +557,6 @@ class EventListener(commands.Cog):
             await ctx.send(f"Unsubscribed channel <#{channel.id}> from all topics")
 
     @commands.command(name='getsubscribedtopics')
-    @commands.has_permissions(administrator=True)
     @utils.log_call
     async def cmd_getSubscribedTopics(self, ctx, channel:commands.TextChannelConverter=None):
         """Returns topics this channel is subscribed to."""
@@ -568,6 +567,13 @@ class EventListener(commands.Cog):
             await ctx.send(f"All subscribed topics of <#{channel.id}>: {topics_all}")
         else:
             await ctx.send(f"<#{channel.id}> has currently no subscribtions")
+    
+    @commands.command(name='gettopics')
+    @utils.log_call
+    async def cmd_getTopics(self, ctx):
+        """Returns topics this channel is subscribed to."""
+        string = '\n'.join(f"`-` {topic}" for topic in TOPICS)
+        await ctx.send(f"These are all topics that can be subscribed:\n{string}")
         
     @cmd_getSubscribedTopics.error
     async def error_getSubscribedTopics(self, ctx, error):
