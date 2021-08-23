@@ -84,7 +84,6 @@ class EventListener(commands.Cog):
         self.scheduler.start()
 
         # Start scheduled tasks
-        print(LOCAL_TZ)
         self.scheduler.add_job(self.loop_scrap, CronTrigger.from_crontab(SCRAP_TIMES, timezone=LOCAL_TZ), id='scrap')
         self.scheduler.add_job(self.loop_post, CronTrigger.from_crontab(POST_TIMES, timezone=LOCAL_TZ), id='post')
         self.scheduler.add_job(self.loop_remind, CronTrigger.from_crontab(REMIND_TIMES, timezone=LOCAL_TZ), id='remind')
