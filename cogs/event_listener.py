@@ -31,8 +31,7 @@ from .utils.event_scrapper import getEvents
 #                    -> 0 0-23/2 * * 0-3
 
 # Local timezone
-# LOCAL_TZ = pytz.timezone('Asia/Tokyo')
-LOCAL_TZ = pytz.timezone('UTC')
+LOCAL_TZ = pytz.timezone('Asia/Tokyo')
 
 # Times when the web-scrapper should run
 SCRAP_TIMES = '0 15 * * *'  # Every day at 15:00
@@ -41,7 +40,7 @@ SCRAP_TIMES = '0 15 * * *'  # Every day at 15:00
 POST_TIMES = '0 20 * * 5-6'  # Every Saturday & Sunday at 20:00
 
 # Time when it shall be reminded of events happening today/tomorrow/...
-REMIND_TIMES = '* 9-10 * * *'  # Every day at 10:00
+REMIND_TIMES = '0 9-10 * * *'  # Every day at 10:00
 REMIND_BEFORE_DAYS = 0  # how many days before the reminder should be done
 
 # Define (logo, thumbnail, footer) for all sources that are scrapped
