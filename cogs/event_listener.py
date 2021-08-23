@@ -38,6 +38,7 @@ SCRAP_TIMES = '0 15 * * *'  # Every day at 15:00
 
 # Times when new events shall be posted to subscribed channels
 POST_TIMES = '0 20 * * 5-6'  # Every Saturday & Sunday at 20:00
+POST_BEFORE_WEEKS = 2  # how many weeks prior to the start of the event it is posted
 
 # Time when it shall be reminded of events happening today/tomorrow/...
 REMIND_TIMES = '0 9-10 * * *'  # Every day at 10:00
@@ -196,7 +197,7 @@ class EventListener(commands.Cog):
             events = db.eventDB.getEvents(
                 visibility=topics,
                 from_date=datetime.datetime.now(tz=LOCAL_TZ).date(),
-                until_date=datetime.datetime.now(tz=LOCAL_TZ).date()+datetime.timedelta(weeks=1)
+                until_date=datetime.datetime.now(tz=LOCAL_TZ).date()+datetime.timedelta(weeks=POST_BEFORE_WEEKS)
             )
 
             ################
