@@ -269,7 +269,7 @@ class EventListener(commands.Cog):
 
             if not events:
                 print(f"-> Channel #{channel}:{channel.id} has no currently happening events")
-                return
+                continue
 
             ################
             # Remind channel
