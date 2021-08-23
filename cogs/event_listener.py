@@ -31,7 +31,8 @@ from .utils.event_scrapper import getEvents
 #                    -> 0 0-23/2 * * 0-3
 
 # Local timezone
-LOCAL_TZ = pytz.timezone('Asia/Tokyo')
+# LOCAL_TZ = pytz.timezone('Asia/Tokyo')
+LOCAL_TZ = pytz.timezone('UTC')
 
 # Times when the web-scrapper should run
 SCRAP_TIMES = '0 15 * * *'  # Every day at 15:00
@@ -79,13 +80,14 @@ class EventListener(commands.Cog):
     """
     def __init__(self, bot:commands.Bot):
         self.bot = bot
-        self.scheduler = AsyncIOScheduler(timezone=LOCAL_TZ)
+        self.scheduler = AsyncIOScheduler()
         self.scheduler.start()
 
         # Start scheduled tasks
-        self.scheduler.add_job(self.loop_scrap, CronTrigger.from_crontab(SCRAP_TIMES), id='scrap')
-        self.scheduler.add_job(self.loop_post, CronTrigger.from_crontab(POST_TIMES), id='post')
-        self.scheduler.add_job(self.loop_remind, CronTrigger.from_crontab(REMIND_TIMES), id='remind')
+        print(LOCAL_TZ)
+        self.scheduler.add_job(self.loop_scrap, CronTrigger.from_crontab(SCRAP_TIMES, timezone=LOCAL_TZ), id='scrap')
+        self.scheduler.add_job(self.loop_post, CronTrigger.from_crontab(POST_TIMES, timezone=LOCAL_TZ), id='post')
+        self.scheduler.add_job(self.loop_remind, CronTrigger.from_crontab(REMIND_TIMES, timezone=LOCAL_TZ), id='remind')
 
         # Print next run times of scheduled tasks
         print('Next run time of scheduled tasks:')
