@@ -74,8 +74,7 @@ TOPICS = ['Chubu', 'Chugoku', 'Hokkaido', 'Kansai', 'Kanto', 'Kyushu', 'Okinawa'
 #########################
 
 class EventListener(commands.Cog):
-    """Discord Cog, Bot Addon.
-
+    """
     This cog gives the bot the ability to scrap for events in the web and post them in subscribed channels.
     """
     def __init__(self, bot:commands.Bot):

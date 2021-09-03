@@ -12,6 +12,7 @@ datetime = "*"
 python-dateutil = "*"
 apscheduler = "*"
 typing = "*"
+discord-custom-help = "*"
 
 [dev-packages]
 autopep8 = "*"

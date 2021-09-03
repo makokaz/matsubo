@@ -63,12 +63,18 @@ async def on_guild_remove(guild):
 def getAllCogs():
     return [filename[:-3] if filename.endswith('.py') else '' for filename in os.listdir('./cogs')]
 
-
-for cog in getAllCogs():
-    if cog:
-        bot.load_extension(f'cogs.{cog}')
-        print(f"Successfully loaded bot-extension '{cog}'")
+def loadCogs():
+    """Loads all bot extensions"""
+    # Load all cogs in the cogs/ folder
+    for cog in getAllCogs():
+        if cog:
+            bot.load_extension(f'cogs.{cog}')
+            print(f"Successfully loaded bot-extension '{cog}'")
+    # Load other cogs
+    bot.load_extension('dch')
+    print(f"Successfully loaded bot-extension 'discord-custom-help'")
 
 if __name__ == "__main__":
+    loadCogs()
     bot.run(BOT_TOKEN)
     print('Running.')

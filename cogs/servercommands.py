@@ -13,6 +13,9 @@ from .utils.utils import *
 import traceback
 
 class ServerCommands(commands.Cog):
+    """
+    Cog that defines basic bot commands on a server.
+    """
     def __init__(self, bot):
         self.bot = bot
 
